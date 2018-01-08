@@ -1,3 +1,14 @@
+
+/*
+
+CASHMASTER
+v0.1
+arthurbauer@me.com
+
+*/
+
+
+
 on('ready', function () {
           'use strict';
       
@@ -31,19 +42,38 @@ on('ready', function () {
           
           sendChat ("Cash master","/w gm <b><u>Total: "+partytotal+"</u></b>");
           
-          //if (msg.content === "!gshare")
+          if (msg.content === "!gshare")
           {
               
+              var cashshare=partytotal/partycounter;
+              var newcounter=0;
+              var pps=Math.floor(cashshare/10);
+              var rest=cashshare-pps*10;
+              var gps=Math.floor(rest);
+              rest=(rest-gps)*2;
+              var eps=Math.floor(rest);
+              rest=(rest-eps)*5;
+              var sps=Math.floor(rest);
+              rest=(rest-sps)*10;
+              var cps=Math.round(rest);
+              rest=(rest-cps)*partycounter;
+              
+              sendChat ("Cash master","/w gm Everyone receives the equivalent of <b>"+cashshare+" gp:</b> "+pps+" platinum, "+gps+" gold, "+eps+" elektrum, "+sps+" silver, and "+cps+" copper.");
+
               _.each(msg.selected, function(obj) {
               var token, character;
+              newcounter++;
               token = getObj('graphic', obj._id);
-              var cashshare=partytotal/partycounter;
-              sendChat ("Cash master","/w gm Everyone gets "+cashshare);
               if (token) {
                   character = getObj('character', token.get('represents'));
               }
               if (character) {
-                  
+                  setatt(character.id,"pp",pps);
+                  setatt(character.id,"gp",gps);
+                  setatt(character.id,"ep",eps);
+                  setatt(character.id,"sp",sps);
+                  if (rest>0.999 && newcounter==partycounter) cps++;
+                  setatt(character.id,"cp",cps);
               }
               
       });
@@ -53,3 +83,21 @@ on('ready', function () {
 });
 
 });
+
+function setatt(char_id, attr_name, newVal) {
+    var attribute = findObjs({
+		_type: "attribute",
+		_characterid: char_id,
+		_name: attr_name
+	})[0];
+
+	if (attribute == undefined) {
+		createObj("attribute", {
+		name: attr_name,
+		current: newVal,
+		characterid: char_id
+		});
+		} else {
+	attribute.set("current", newVal.toString());
+	}
+}
