@@ -16,7 +16,7 @@ on('ready', function () {
           if (msg.type !== "api" && !playerIsGM(msg.playerid)) return;
           if (msg.content !== '!g' && msg.content !== "!gshare") return;
              var partytotal = 0;
-             var output = "";
+             var output = "/w gm &{template:desc} {{desc=<b>Party's cash overview</b><hr>";
              var partycounter = 0;
           _.each(msg.selected, function(obj) {
               var token, character;
@@ -32,15 +32,16 @@ on('ready', function () {
                   var ep = getAttrByName(character.id, "ep")*1;                  
                   var sp = getAttrByName(character.id, "sp")*1;
                   var cp = getAttrByName(character.id, "cp")*1;
-                  var total = pp*10+gp+ep*0.5+cp/100+sp/10;
+                  var total = Math.round((pp*10+gp+ep*0.5+cp/100+sp/10)*10000)/10000;
                   partytotal = total+partytotal;
-                  sendChat ("Cash master","/w gm <b>"+name+"</b> has "+pp+" platinum, "+gp+" gold, "+ep+" elektrum, "+sp+" silver, and "+cp+" copper. Converted, this character has "+total+" gp in total.");
+                  output+= "<b>"+name+"</b><br>has "+pp+" platinum, "+gp+" gold, "+ep+" elektrum, "+sp+" silver, and "+cp+" copper.<br>Converted, this character has "+total+" gp in total.<hr>";
               }
           });
           
           partytotal=Math.round(partytotal*100,0)/100;
           
-          sendChat ("Cash master","/w gm <b><u>Total: "+partytotal+"</u></b>");
+          output+= "<b><u>Total: "+partytotal+"</u></b>}}";
+          sendChat ("Cash master",output); 
           
           if (msg.content === "!gshare")
           {
@@ -58,7 +59,7 @@ on('ready', function () {
               var cps=Math.round(rest);
               rest=(rest-cps)*partycounter;
               
-              sendChat ("Cash master","/w gm Everyone receives the equivalent of <b>"+cashshare+" gp:</b> "+pps+" platinum, "+gps+" gold, "+eps+" elektrum, "+sps+" silver, and "+cps+" copper.");
+              sendChat ("Cash master","/w gm &{template:desc} {{desc=<b>Cashing out - it's payday!</b><hr>Everyone receives the equivalent of <b>"+cashshare+" gp:</b> "+pps+" platinum, "+gps+" gold, "+eps+" elektrum, "+sps+" silver, and "+cps+" copper.}}");
 
               _.each(msg.selected, function(obj) {
               var token, character;
