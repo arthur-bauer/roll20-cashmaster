@@ -11,13 +11,13 @@ arthurbauer@me.com
 on('ready', function () {
           'use strict';
 
-		  var v="0.2";
+		  var v="0.3a";
       
-		  log("Cashmaster v"+v+" online. Use !cm for overview, !cmshare for splitting and !cmadd for adding cash!");
+		  log("Cashmaster v"+v+" online. Select one or more party members, then use `!cm -help` ");
       
          on('chat:message', function(msg) {
           if (msg.type !== "api" && !playerIsGM(msg.playerid)) return;
-          if (msg.content !== '!cm' && msg.content !== "!cmshare" && msg.content.startsWith("!cmadd")!== true) return;
+          if (msg.content.startsWith("!cm")!== true) return;
              var partytotal = 0;
              var output = "/w gm &{template:desc} {{desc=<b>Party's cash overview</b><hr>";
              var partycounter = 0;
@@ -45,6 +45,13 @@ on('ready', function () {
           
           output+= "<b><u>Party total: "+partytotal+"</u></b>}}";
           sendChat ("Cash master",output); 
+
+          if (msg.content === "!cm -help")
+
+		  {
+			sendChat ("Cash master","/w gm <h2>Usage</h2><p>Select one or several party members.</p><p>Use</p><ul><li><code>!cm</code> to get an <strong>overview</strong> over the party's cash,</li><li><code>!cmshare</code> to <strong>share</strong> the money equally between party members (note: money gets converted into the highest amount of every coin type)</li><li><code>!cmadd [amount][currency]</code> to add/substract money.</li></ul><h3>Example</h3><p><code>!cmadd -1gp 10sp</code> will substract 1gp and add 10 sp at the same time.</p>");  
+			  
+		  }	
           
           if (msg.content === "!cmshare")
           {
