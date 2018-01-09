@@ -49,11 +49,11 @@ on('ready', function () {
           if (msg.content === "!cm -help")
 
 		  {
-			sendChat ("Cash master","/w gm <h2>Usage</h2><p>Select one or several party members.</p><p>Use</p><ul><li><code>!cm</code> to get an <strong>overview</strong> over the party's cash,</li><li><code>!cmshare</code> to <strong>share</strong> the money equally between party members (note: money gets converted into the highest amount of every coin type)</li><li><code>!cmadd [amount][currency]</code> to add/substract money.</li></ul><h3>Example</h3><p><code>!cmadd -1gp 10sp</code> will substract 1gp and add 10 sp at the same time.</p>");  
+			sendChat ("Cash master","/w gm <h2>Usage</h2><p>Select one or several party members.</p><p>Use</p><ul><li><code>!cm</code> to get an <strong>overview</strong> over the party’s cash,</li><li><code>!cmshare</code> to <strong>share</strong> the money equally between party members, converting the amount into the best combination of gold, silver and copper.</li><li><code>!cmconvert</code> to <strong>convert and share</strong> the money equally. between party members, converting the amount into the best combination of platinum, gold, elektrum, silver and copper.</li><li><code>!cmadd [amount][currency]</code> to add/substract money from the selected party members.</li></ul><h3>Examples</h3><ol><li><code>!cmadd -1gp 10sp</code> will substract 1gp and add 10 sp at the same time.</li><li><code>!cmshare</code> will collect all the money and share it evenly on the members, using gp, sp and cp only (pp and ep will be converted).</li></ol>");  
 			  
 		  }	
           
-          if (msg.content === "!cmshare")
+          if (msg.content === "!cmconvert")
           {
               output="";
               var cashshare=partytotal/partycounter;
@@ -92,6 +92,44 @@ on('ready', function () {
                       
       }
     
+          if (msg.content === "!cmshare")
+          {
+              output="";
+              var cashshare=partytotal/partycounter;
+              var newcounter=0;
+              var pps=0;
+              var eps=0;
+              var rest=cashshare;
+              var gps=Math.floor(rest);
+              rest=(rest-gps)*10;
+              var sps=Math.floor(rest);
+              rest=(rest-sps)*10;
+              var cps=Math.round(rest);
+              rest=(rest-cps)*partycounter;
+              
+              sendChat ("Cash master","/w gm &{template:desc} {{desc=<b>Let's share this!</b><hr>Everyone receives the equivalent of <b>"+cashshare+" gp:</b> "+pps+" platinum, "+gps+" gold, "+eps+" elektrum, "+sps+" silver, and "+cps+" copper.}}");
+
+              _.each(msg.selected, function(obj) {
+              var token, character;
+              newcounter++;
+              token = getObj('graphic', obj._id);
+              if (token) {
+                  character = getObj('character', token.get('represents'));
+              }
+              if (character) {
+                  setatt(character.id,"pp",pps);
+                  setatt(character.id,"gp",gps);
+                  setatt(character.id,"ep",eps);
+                  setatt(character.id,"sp",sps);
+                  if (rest>0.999 && newcounter==partycounter) cps++;
+                  if (rest<-0.999 && newcounter==partycounter) cps--;
+                  setatt(character.id,"cp",cps);
+              }
+              
+      });
+                      
+      }
+
     
           if (msg.content.startsWith("!cmadd")== true)
           {
