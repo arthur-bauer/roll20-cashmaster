@@ -38,7 +38,7 @@ on('ready', function () {
                   var cp = getAttrByName(character.id, "cp")*1;
                   var total = Math.round((pp*10+gp+ep*0.5+cp/100+sp/10)*10000)/10000;
                   partytotal = total+partytotal;
-                  output+= "<b>"+name+"</b><br>has "+pp+" platinum, "+gp+" gold, "+ep+" elektrum, "+sp+" silver, and "+cp+" copper.<br>Converted, this character has "+total+" gp in total.<hr>";
+                  output+= "<b>"+name+"</b><br>has "+pp+" platinum, "+gp+" gold, "+ep+" elektrum, "+sp+" silver, and "+cp+" copper.<br>Converted, this character has <span title='Equals roughly "+(total*25)+"USD'>"+total+" gp</span> in total.<hr>";
               }
           });
           
@@ -49,7 +49,7 @@ on('ready', function () {
           
           if (msg.content === "!cmshare")
           {
-              
+              output="";
               var cashshare=partytotal/partycounter;
               var newcounter=0;
               var pps=Math.floor(cashshare/10);
@@ -104,7 +104,8 @@ on('ready', function () {
               var cpg=/([0-9 -]+)cp/;
               var cpa=cpg.exec(msg.content);
 
-              
+			  output="";
+
               _.each(msg.selected, function(obj) {
               var token, character;
               token = getObj('graphic', obj._id);
@@ -113,7 +114,6 @@ on('ready', function () {
               }
               if (character) {
 				  partycounter++;
-				  output="";
 	              var name = getAttrByName(character.id, "character_name");
 	              var pp = getAttrByName(character.id, "pp")*1;
 	              var gp = getAttrByName(character.id, "gp")*1;                  
@@ -122,18 +122,18 @@ on('ready', function () {
 	              var cp = getAttrByName(character.id, "cp")*1;
 	              var total = Math.round((pp*10+gp+ep*0.5+cp/100+sp/10)*10000)/10000;
 	              partytotal = total+partytotal;
-
-                  if (ppa) {setatt(character.id,"pp",parseInt(pp)+parseInt(ppa[1])); output+="<br>&middot; "+ppa[0];}
-                  if (gpa) {setatt(character.id,"gp",parseInt(gp)+parseInt(gpa[1])); output+="<br>&middot; "+gpa[0];}
-                  if (epa) {setatt(character.id,"ep",parseInt(ep)+parseInt(epa[1])); output+="<br>&middot; "+epa[0];}
-                  if (spa) {setatt(character.id,"sp",parseInt(sp)+parseInt(spa[1])); output+="<br>&middot; "+spa[0];}
-                  if (cpa) {setatt(character.id,"cp",parseInt(cp)+parseInt(cpa[1])); output+="<br>&middot; "+cpa[0];}
+				  output+="<br><b>"+name+"</b>";
+                  if (ppa) {setatt(character.id,"pp",parseInt(pp)+parseInt(ppa[1])); output+="<br> "+ppa[0];}
+                  if (gpa) {setatt(character.id,"gp",parseInt(gp)+parseInt(gpa[1])); output+="<br> "+gpa[0];}
+                  if (epa) {setatt(character.id,"ep",parseInt(ep)+parseInt(epa[1])); output+="<br> "+epa[0];}
+                  if (spa) {setatt(character.id,"sp",parseInt(sp)+parseInt(spa[1])); output+="<br> "+spa[0];}
+                  if (cpa) {setatt(character.id,"cp",parseInt(cp)+parseInt(cpa[1])); output+="<br> "+cpa[0];}
                   
-                  sendChat ("Cash master","/w gm &{template:desc} {{desc=<b>Cashing out - it's payday!</b><hr>Every selected character receives<br>"+output+"}}");
                   
               }
               
-      });
+		      });
+              sendChat ("Cash master","/w gm &{template:desc} {{desc=<b>Cashing out - it's payday!</b><hr>Every selected character receives<br>"+output+"}}");
                       
       }
     
