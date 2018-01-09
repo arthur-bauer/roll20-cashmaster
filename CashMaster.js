@@ -15,7 +15,7 @@ on('ready', function () {
 		  var usd=0;
 		  var scname="CashMaster";
       
-		  log(scname+" v"+v+" online. Select one or more party members, then use `!cm -help` ");
+		  log(scname+" v"+v+" online. Select one or more party members, then use `!cmhelp` ");
       
          on('chat:message', function(msg) {
           if (msg.type !== "api" && !playerIsGM(msg.playerid)) return;
@@ -59,7 +59,7 @@ on('ready', function () {
           output+= "<b><u>Party total: "+partytotal+"</u></b>}}";
           sendChat (scname,output); 
 
-          if (msg.content === "!cm -help")
+          if (msg.content === "!cmhelp")
 
 		  {
 			sendChat (scname,"/w gm <h2>Usage</h2><p>Select one or several party members.</p><p>Use</p><ul><li><code>!cm</code> to get an <strong>overview</strong> over the party’s cash,</li><li><code>!cmshare</code> to <strong>share</strong> the money equally between party members, converting the amount into the best combination of gold, silver and copper.</li><li><code>!cmconvert</code> to <strong>convert and share</strong> the money equally. between party members, converting the amount into the best combination of platinum, gold, elektrum, silver and copper.</li><li><code>!cmadd [amount][currency]</code> to add/substract money from the selected party members.</li></ul><h3>Examples</h3><ol><li><code>!cmadd -1gp 10sp</code> will substract 1gp and add 10 sp at the same time.</li><li><code>!cmshare</code> will collect all the money and share it evenly on the members, using gp, sp and cp only (pp and ep will be converted).</li></ol>");  
