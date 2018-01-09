@@ -11,10 +11,14 @@ arthurbauer@me.com
 
 on('ready', function () {
           'use strict';
+
+		  var v="0.1";
+      
+		  log("Cashmaster v"+v+" online. Use !cm for overview, !cmshare for splitting and !cmadd for adding cash!");
       
          on('chat:message', function(msg) {
           if (msg.type !== "api" && !playerIsGM(msg.playerid)) return;
-          if (msg.content !== '!g' && msg.content !== "!gshare") return;
+          if (msg.content !== '!cm' && msg.content !== "!cmshare" && msg.content.startsWith("!cmadd")!== true) return;
              var partytotal = 0;
              var output = "/w gm &{template:desc} {{desc=<b>Party's cash overview</b><hr>";
              var partycounter = 0;
@@ -40,10 +44,10 @@ on('ready', function () {
           
           partytotal=Math.round(partytotal*100,0)/100;
           
-          output+= "<b><u>Total: "+partytotal+"</u></b>}}";
+          output+= "<b><u>Party total: "+partytotal+"</u></b>}}";
           sendChat ("Cash master",output); 
           
-          if (msg.content === "!gshare")
+          if (msg.content === "!cmshare")
           {
               
               var cashshare=partytotal/partycounter;
@@ -59,7 +63,7 @@ on('ready', function () {
               var cps=Math.round(rest);
               rest=(rest-cps)*partycounter;
               
-              sendChat ("Cash master","/w gm &{template:desc} {{desc=<b>Cashing out - it's payday!</b><hr>Everyone receives the equivalent of <b>"+cashshare+" gp:</b> "+pps+" platinum, "+gps+" gold, "+eps+" elektrum, "+sps+" silver, and "+cps+" copper.}}");
+              sendChat ("Cash master","/w gm &{template:desc} {{desc=<b>Let's share this!</b><hr>Everyone receives the equivalent of <b>"+cashshare+" gp:</b> "+pps+" platinum, "+gps+" gold, "+eps+" elektrum, "+sps+" silver, and "+cps+" copper.}}");
 
               _.each(msg.selected, function(obj) {
               var token, character;
@@ -80,6 +84,61 @@ on('ready', function () {
       });
                       
       }
+    
+    
+          if (msg.content.startsWith("!cmadd")== true)
+          {
+              
+              var ppg=/([0-9 -]+)pp/;
+              var ppa=ppg.exec(msg.content);
+
+              var gpg=/([0-9 -]+)gp/;
+              var gpa=gpg.exec(msg.content);
+
+              var epg=/([0-9 -]+)ep/;
+              var epa=epg.exec(msg.content);
+
+              var spg=/([0-9 -]+)sp/;
+              var spa=spg.exec(msg.content);
+
+              var cpg=/([0-9 -]+)cp/;
+              var cpa=cpg.exec(msg.content);
+
+              
+              _.each(msg.selected, function(obj) {
+              var token, character;
+              token = getObj('graphic', obj._id);
+              if (token) {
+                  character = getObj('character', token.get('represents'));
+              }
+              if (character) {
+				  partycounter++;
+				  output="";
+	              var name = getAttrByName(character.id, "character_name");
+	              var pp = getAttrByName(character.id, "pp")*1;
+	              var gp = getAttrByName(character.id, "gp")*1;                  
+	              var ep = getAttrByName(character.id, "ep")*1;                  
+	              var sp = getAttrByName(character.id, "sp")*1;
+	              var cp = getAttrByName(character.id, "cp")*1;
+	              var total = Math.round((pp*10+gp+ep*0.5+cp/100+sp/10)*10000)/10000;
+	              partytotal = total+partytotal;
+
+                  if (ppa) {setatt(character.id,"pp",parseInt(pp)+parseInt(ppa[1])); output+="<br>&middot; "+ppa[0];}
+                  if (gpa) {setatt(character.id,"gp",parseInt(gp)+parseInt(gpa[1])); output+="<br>&middot; "+gpa[0];}
+                  if (epa) {setatt(character.id,"ep",parseInt(ep)+parseInt(epa[1])); output+="<br>&middot; "+epa[0];}
+                  if (spa) {setatt(character.id,"sp",parseInt(sp)+parseInt(spa[1])); output+="<br>&middot; "+spa[0];}
+                  if (cpa) {setatt(character.id,"cp",parseInt(cp)+parseInt(cpa[1])); output+="<br>&middot; "+cpa[0];}
+                  
+                  sendChat ("Cash master","/w gm &{template:desc} {{desc=<b>Cashing out - it's payday!</b><hr>Every selected character receives<br>"+output+"}}");
+                  
+              }
+              
+      });
+                      
+      }
+    
+        
+    
     
 });
 
