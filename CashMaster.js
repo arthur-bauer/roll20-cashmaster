@@ -84,6 +84,7 @@ on('ready', function () {
                   setatt(character.id,"ep",eps);
                   setatt(character.id,"sp",sps);
                   if (rest>0.999 && newcounter==partycounter) cps++;
+                  if (rest<-0.999 && newcounter==partycounter) cps--;
                   setatt(character.id,"cp",cps);
               }
               
