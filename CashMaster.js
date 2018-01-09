@@ -2,7 +2,6 @@
 /*
 
 CASHMASTER
-v0.1
 arthurbauer@me.com
 
 */
@@ -12,7 +11,7 @@ arthurbauer@me.com
 on('ready', function () {
           'use strict';
 
-		  var v="0.1";
+		  var v="0.2";
       
 		  log("Cashmaster v"+v+" online. Use !cm for overview, !cmshare for splitting and !cmadd for adding cash!");
       
