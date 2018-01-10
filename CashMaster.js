@@ -127,6 +127,7 @@ on('ready', function () {
               var cps=Math.round(rest);
               rest=(rest-cps)*partycounter;
               
+              
               sendChat (scname,"/w gm &{template:desc} {{desc=<b>Let's share this!</b><hr>Everyone receives the equivalent of <b>"+cashshare+" gp:</b> "+pps+" platinum, "+gps+" gold, "+eps+" electrum, "+sps+" silver, and "+cps+" copper.}}");
 
               _.each(msg.selected, function(obj) {
@@ -141,8 +142,9 @@ on('ready', function () {
                   setattr(character.id,"gp",gps);
                   setattr(character.id,"ep",eps);
                   setattr(character.id,"sp",sps);
-                  if (rest>0.999 && newcounter==partycounter) cps++;
-                  if (rest<-0.999 && newcounter==partycounter) cps--;
+                  // enough copper coins? If not, the last one in the group has to take the diff                  
+                  if (rest>0.999 && newcounter==partycounter) cps=cps+Math.round(rest);
+                  if (rest<-0.999 && newcounter==partycounter) cps=cps+Math.round(rest);
                   setattr(character.id,"cp",cps);
               }
               
