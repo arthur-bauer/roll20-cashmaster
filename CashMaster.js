@@ -12,7 +12,15 @@ on('ready', function () {
           'use strict';
 
 		  var v="0.3a";
-		  var usd=0;
+		  
+		  var usd=25; 
+		  /* 
+	
+			Change this if you want to have a rough estimation of a characters wealth in USD. 
+			Set it to something between 25 and 50 (25 USD per 1gp).	
+			Set it to 0 to disable	  
+		  */
+		  
 		  var scname="CashMaster";
       
 		  log(scname+" v"+v+" online. Select one or more party members, then use `!cmhelp` ");
@@ -47,7 +55,7 @@ on('ready', function () {
                   if (cp!=0) output+=cp+" copper.";
                   
                   output+="<br>Converted, this character has ";
-                  if (usd>0) output+="<span title='Equals roughly "+(total*usd)+"USD'>";
+                  if (usd>0) output+="<span title='Equals roughly "+(Math.round((total*usd)/5)*5)+"USD'>";
                   output+=total+" gp";
                   if (usd>0) output+="</span>";
                   output+=" in total.<hr>";
