@@ -42,7 +42,7 @@ on('ready', function () {
                   output+= "<b>"+name+"</b><br>has ";
                   if (pp!=0) output+=pp+" platinum, ";
                   if (gp!=0) output+=gp+" gold, ";
-                  if (ep!=0) output+=ep+" elektrum, ";
+                  if (ep!=0) output+=ep+" electrum, ";
                   if (sp!=0) output+=sp+" silver,  ";
                   if (cp!=0) output+=cp+" copper.";
                   
@@ -62,7 +62,7 @@ on('ready', function () {
           if (msg.content === "!cmhelp")
 
 		  {
-			sendChat (scname,"/w gm <h2>Usage</h2><p>First, select one or several party members.</p><p>Then use</p><ul><li><code>!cm</code> to get an <strong>overview</strong> over the party’s cash,</li><li><code>!cmshare</code> to <strong>share</strong> the money equally between party members, converting the amount into the best combination of gold, silver and copper,</li><li><code>!cmconvert</code> to <strong>convert and share</strong> the money equally between party members, converting the amount into the best combination of platinum, gold, elektrum, silver and copper,</li><li><code>!cmadd [amount][currency]</code> to add/substract money from the selected party members.</li></ul><h3>Examples</h3><ol><li><code>!cm</code> will show a cash overview.</li><li><code>!cmshare</code> will collect all the money and share it evenly on the members, using gp, sp and cp only (pp and ep will be converted). Can also be used for one character to “exchange” money.</li><li><code>!cmconvert</code> - same as <code>!cmshare</code>, but will also use platinum and elektrum.</li><li><code>!cmadd 50gp</code> will add 50 gp to every selected character.</li></ol><p><strong>Note:</strong> If you substract more coins than a character has, the coin value will become negative. Use <code>!cmshare</code> on that one character to balance the coins (see examples below).</p><h3>Advanced uses</h3><ol><li><strong>Changing multiple values at once:</strong> <code>!cmadd -1gp 10sp</code> will substract 1 gp and add 10 sp at the same time.</li><li><strong>Paying services:</strong> <code>!cmadd -6cp</code> will substract 6cp. Use <code>!cmshare</code> afterwards to balance the amount of coins (e.g. it will substract 1 sp and add 4 cp if the character didn’t have copper pieces before).</li></ol>");  
+			sendChat (scname,"/w gm <h2>Usage</h2><p>First, select one or several party members.</p><p>Then use</p><ul><li><code>!cm</code> to get an <strong>overview</strong> over the party’s cash,</li><li><code>!cmshare</code> to <strong>share</strong> the money equally between party members, converting the amount into the best combination of gold, silver and copper,</li><li><code>!cmconvert</code> to <strong>convert and share</strong> the money equally between party members, converting the amount into the best combination of platinum, gold, electrum, silver and copper,</li><li><code>!cmadd [amount][currency]</code> to add/substract money from the selected party members.</li></ul><h3>Examples</h3><ol><li><code>!cm</code> will show a cash overview.</li><li><code>!cmshare</code> will collect all the money and share it evenly on the members, using gp, sp and cp only (pp and ep will be converted). Can also be used for one character to “exchange” money.</li><li><code>!cmconvert</code> - same as <code>!cmshare</code>, but will also use platinum and electrum.</li><li><code>!cmadd 50gp</code> will add 50 gp to every selected character.</li></ol><p><strong>Note:</strong> If you substract more coins than a character has, the coin value will become negative. Use <code>!cmshare</code> on that one character to balance the coins (see examples below).</p><h3>Advanced uses</h3><ol><li><strong>Changing multiple values at once:</strong> <code>!cmadd -1gp 10sp</code> will substract 1 gp and add 10 sp at the same time.</li><li><strong>Paying services:</strong> <code>!cmadd -6cp</code> will substract 6cp. Use <code>!cmshare</code> afterwards to balance the amount of coins (e.g. it will substract 1 sp and add 4 cp if the character didn’t have copper pieces before).</li></ol>");  
 			  
 		  }	
           
@@ -82,7 +82,7 @@ on('ready', function () {
               var cps=Math.round(rest);
               rest=(rest-cps)*partycounter;
               
-              sendChat (scname,"/w gm &{template:desc} {{desc=<b>Let's share this!</b><hr>Everyone receives the equivalent of <b>"+cashshare+" gp:</b> "+pps+" platinum, "+gps+" gold, "+eps+" elektrum, "+sps+" silver, and "+cps+" copper.}}");
+              sendChat (scname,"/w gm &{template:desc} {{desc=<b>Let's share this!</b><hr>Everyone receives the equivalent of <b>"+cashshare+" gp:</b> "+pps+" platinum, "+gps+" gold, "+eps+" electrum, "+sps+" silver, and "+cps+" copper.}}");
 
               _.each(msg.selected, function(obj) {
               var token, character;
@@ -120,7 +120,7 @@ on('ready', function () {
               var cps=Math.round(rest);
               rest=(rest-cps)*partycounter;
               
-              sendChat (scname,"/w gm &{template:desc} {{desc=<b>Let's share this!</b><hr>Everyone receives the equivalent of <b>"+cashshare+" gp:</b> "+pps+" platinum, "+gps+" gold, "+eps+" elektrum, "+sps+" silver, and "+cps+" copper.}}");
+              sendChat (scname,"/w gm &{template:desc} {{desc=<b>Let's share this!</b><hr>Everyone receives the equivalent of <b>"+cashshare+" gp:</b> "+pps+" platinum, "+gps+" gold, "+eps+" electrum, "+sps+" silver, and "+cps+" copper.}}");
 
               _.each(msg.selected, function(obj) {
               var token, character;
