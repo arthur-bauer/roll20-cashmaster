@@ -11,14 +11,13 @@ arthurbauer@me.com
 on('ready', function () {
           'use strict';
 
-		  var v="0.3a";
+		  var v="0.3";
 		  
 		  var usd=25; 
 		  /* 
-	
 			Change this if you want to have a rough estimation of a characters wealth in USD. 
 			Set it to something between 25 and 50 (25 USD per 1gp).	
-			Set it to 0 to disable	  
+			Set it to 0 to disable it completely.	  
 		  */
 		  
 		  var scname="CashMaster";
