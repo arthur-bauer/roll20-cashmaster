@@ -225,7 +225,7 @@ function setattr(cid,att,val)
 let attr = findObjs({type:'attribute',characterid:cid,name:att})[0];
 if(attr){
   let cur = attr.get('current'); // .get()
-  log(`${att}: ${cur}->${val}`);
+ // log(`${att}: ${cur}->${val}`);
   attr.set({current: parseInt(val)}); // .set()
 } 	
 }
