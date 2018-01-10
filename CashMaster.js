@@ -30,6 +30,7 @@ on('ready', function () {
              var partytotal = 0;
              var output = "/w gm &{template:desc} {{desc=<b>Party's cash overview</b><hr>";
              var partycounter = 0;
+             var partymember = Object.entries(msg.selected).length;
           _.each(msg.selected, function(obj) {
               var token, character;
               token = getObj('graphic', obj._id);
@@ -204,13 +205,79 @@ on('ready', function () {
                       
       }
     
-        
+   
+   
+if (msg.content.startsWith("!cmhoard")== true)
+          {
+              
+              var ppg=/([0-9 -]+)pp/;
+              var ppa=ppg.exec(msg.content);
+
+              var gpg=/([0-9 -]+)gp/;
+              var gpa=gpg.exec(msg.content);
+
+              var epg=/([0-9 -]+)ep/;
+              var epa=epg.exec(msg.content);
+
+              var spg=/([0-9 -]+)sp/;
+              var spa=spg.exec(msg.content);
+
+              var cpg=/([0-9 -]+)cp/;
+              var cpa=cpg.exec(msg.content);
+
+			  output="";
+			  var partycounter = 0;
+				  
+			  _.each(msg.selected, function(obj) {
+              var token, character;
+              token = getObj('graphic', obj._id);
+              if (token) {
+                  character = getObj('character', token.get('represents'));
+              }
+              if (character) {
+				  partycounter++;
+	              var name = getAttrByName(character.id, "character_name");
+	              var pp = getattr(character.id, "pp")*1;
+	              var gp = getattr(character.id, "gp")*1;                  
+	              var ep = getattr(character.id, "ep")*1;                  
+	              var sp = getattr(character.id, "sp")*1;
+	              var cp = getattr(character.id, "cp")*1;
+
+				  var ppt=cashsplit(ppa,partymember,partycounter);
+				  var gpt=cashsplit(gpa,partymember,partycounter);
+				  var ept=cashsplit(epa,partymember,partycounter);
+				  var spt=cashsplit(spa,partymember,partycounter);
+				  var cpt=cashsplit(cpa,partymember,partycounter);
+
+				  output+="<br><b>"+name+"</b>";
+                  if (ppa) {setattr(character.id,"pp",parseInt(pp)+parseInt(ppt)); output+="<br> "+ppt+"pp";}
+                  if (gpa) {setattr(character.id,"gp",parseInt(gp)+parseInt(gpt)); output+="<br> "+gpt+"gp";}
+                  if (epa) {setattr(character.id,"ep",parseInt(ep)+parseInt(ept)); output+="<br> "+ept+"ep";}
+                  if (spa) {setattr(character.id,"sp",parseInt(sp)+parseInt(spt)); output+="<br> "+spt+"sp";}
+                  if (cpa) {setattr(character.id,"cp",parseInt(cp)+parseInt(cpt)); output+="<br> "+cpt+"cp";}
+              }
+              
+		      });
+              sendChat (scname,"/w gm &{template:desc} {{desc=<b>Cashing out - it's payday!</b><hr>"+output+"}}");                      
+      }        
     
     
 });
 
 });
 
+
+function cashsplit(c,m,x)
+{
+if (c !== null)
+{
+var ct=Math.floor(c[1] / m);
+var cr=c[1] % m;
+if (cr>=x) ct++;
+return ct;
+}	
+
+}
 
 function getattr(cid,att)
 {
