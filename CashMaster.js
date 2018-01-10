@@ -40,11 +40,11 @@ on('ready', function () {
                   var total = Math.round((pp*10+gp+ep*0.5+cp/100+sp/10)*10000)/10000;
                   partytotal = total+partytotal;
                   output+= "<b>"+name+"</b><br>has ";
-                  if (pp>0) output+=pp+" platinum, ";
-                  if (gp>0) output+=gp+" gold, ";
-                  if (ep>0) output+=ep+" elektrum, ";
-                  if (sp>0) output+=sp+" silver,  ";
-                  if (cp>0) output+=cp+" copper.";
+                  if (pp!=0) output+=pp+" platinum, ";
+                  if (gp!=0) output+=gp+" gold, ";
+                  if (ep!=0) output+=ep+" elektrum, ";
+                  if (sp!=0) output+=sp+" silver,  ";
+                  if (cp!=0) output+=cp+" copper.";
                   
                   output+="<br>Converted, this character has ";
                   if (usd>0) output+="<span title='Equals roughly "+(total*usd)+"USD'>";
