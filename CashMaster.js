@@ -258,7 +258,7 @@ if (msg.content.startsWith("!cmhoard")== true)
               }
               
 		      });
-              sendChat (scname,"/w gm &{template:desc} {{desc=<b>Cashing out - it's payday!</b><hr>"+output+"}}");                      
+              sendChat (scname,"/w gm &{template:desc} {{desc=<b>You are splitting up the coins among you</b><hr>"+output+"}}");                      
       }        
     
     
