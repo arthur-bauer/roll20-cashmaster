@@ -243,11 +243,11 @@ if (msg.content.startsWith("!cmhoard")== true)
 	              var sp = getattr(character.id, "sp")*1;
 	              var cp = getattr(character.id, "cp")*1;
 
-				  var ppt=cashsplit(ppa,partymember,partycounter);
-				  var gpt=cashsplit(gpa,partymember,partycounter);
-				  var ept=cashsplit(epa,partymember,partycounter);
-				  var spt=cashsplit(spa,partymember,partycounter);
-				  var cpt=cashsplit(cpa,partymember,partycounter);
+				  if (ppa !== null) var ppt=cashsplit(ppa[1],partymember,partycounter);
+				  if (gpa !== null) var gpt=cashsplit(gpa[1],partymember,partycounter);
+				  if (epa !== null) var ept=cashsplit(epa[1],partymember,partycounter);
+				  if (spa !== null) var spt=cashsplit(spa[1],partymember,partycounter);
+				  if (cpa !== null) var cpt=cashsplit(cpa[1],partymember,partycounter);
 
 				  output+="<br><b>"+name+"</b>";
                   if (ppa) {setattr(character.id,"pp",parseInt(pp)+parseInt(ppt)); output+="<br> "+ppt+"pp";}
@@ -269,14 +269,15 @@ if (msg.content.startsWith("!cmhoard")== true)
 
 function cashsplit(c,m,x)
 {
+var ct = 0;
+var cr = 0;
 if (c !== null)
-{
-var ct=Math.floor(c[1] / m);
-var cr=c[1] % m;
-if (cr>=x) ct++;
+	{
+	ct = Math.floor(c / m);
+	cr = c % m;
+	if (cr >= x) ct++;
+	}
 return ct;
-}	
-
 }
 
 function getattr(cid,att)
@@ -293,7 +294,6 @@ function setattr(cid,att,val)
 {
 let attr = findObjs({type:'attribute',characterid:cid,name:att})[0];
 if(attr){
-  let cur = attr.get('current'); // .get()
  // log(`${att}: ${cur}->${val}`);
   attr.set({current: parseInt(val)}); // .set()
 } 	
