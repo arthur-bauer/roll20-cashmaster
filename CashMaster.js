@@ -55,7 +55,7 @@ on('ready', function () {
                   if (cp!=0) output+=cp+" copper.";
                   
                   output+="<br>Converted, this character has ";
-                  if (usd>0) output+="<span title='Equals roughly "+(Math.round((total*usd)/5)*5)+"USD'>";
+                  if (usd>0) output+="<span title='Equals roughly "+(Math.round((total*usd)/5)*5)+" USD'>";
                   output+=total+" gp";
                   if (usd>0) output+="</span>";
                   output+=" in total.<hr>";
