@@ -32,3 +32,4 @@ between party members, converting the amount into the best combination of gold, 
 
 1. **Changing multiple values at once:** `!cmadd -1gp 10sp` will substract 1 gp and add 10 sp at the same time.
 2. **Paying services:** `!cmadd -6cp` will subtract 6cp from each selected party member. Use `!cmshare` or `!cmconvert` afterwards to balance the amount of coins (e.g. it will substract 1 sp and add 4 cp if the character didn't have copper pieces before).
+3. **Paying services, alternative:** `!cmhoard -50gp` will deduct 50 gp from the party in total. Again, you might have to balance negative coin amounts, like described under 1. or 2. 
