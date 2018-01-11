@@ -65,7 +65,7 @@ on('ready', function () {
           
           partytotal=Math.round(partytotal*100,0)/100;
           
-          output+= "<b><u>Party total: "+partytotal+"</u></b>}}";
+          output+= "<b><u>Party total: "+partytotal+" gp</u></b>}}";
           sendChat (scname,output); 
 
           if (msg.content === "!cmhelp")
