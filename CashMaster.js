@@ -277,6 +277,7 @@ if (c !== null)
 	ct = Math.floor(c / m);
 	cr = c % m;
 	if (cr >= x) ct++;
+	else if (c<0 && cr<0 && -cr<x) ct++;
 	}
 return ct;
 }
