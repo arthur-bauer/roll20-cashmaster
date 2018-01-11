@@ -1,12 +1,13 @@
-
 /*
 
 CASHMASTER
+
+A currency management script for the D&D 5e OGL sheets on roll20.net.
+Please use `!cmhelp` for inline help and examples.
+
 arthurbauer@me.com
 
 */
-
-
 
 on('ready', function () {
           'use strict';
@@ -15,7 +16,7 @@ on('ready', function () {
 		  
 		  var usd=25; 
 		  /* 
-			Change this if you want to have a rough estimation of a characters wealth in USD. 
+			Change this if you want to have a rough estimation of a character's wealth in USD. 
 			Set it to something between 25 and 50 (25 USD per 1gp).	
 			Set it to 0 to disable it completely.	  
 		  */
