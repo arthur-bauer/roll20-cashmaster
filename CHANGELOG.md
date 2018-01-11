@@ -47,3 +47,4 @@
 
 * Bugfix for negative treasure
 * Merged cmshare and cmconvert routines
+* Changed to attr.setWithWorker to trigger weight recalc
