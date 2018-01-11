@@ -12,7 +12,7 @@ arthurbauer@me.com
 on('ready', function () {
           'use strict';
 
-		  var v="0.4a";
+		  var v="0.4";
 		  
 		  var usd=25; 
 		  /* 
