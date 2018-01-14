@@ -12,7 +12,7 @@ arthurbauer@me.com
 on('ready', function () {
           'use strict';
 
-		  var v="0.4.1";
+		  var v="0.5a";
 		  
 		  var usd=25; 
 		  /* 
@@ -169,6 +169,68 @@ on('ready', function () {
                       
       }
     
+   if (msg.content.startsWith("!cmpay")== true)
+          {
+              
+              
+              var ppg=/([0-9 -]+)pp/;
+              var ppa=ppg.exec(msg.content);
+
+              var gpg=/([0-9 -]+)gp/;
+              var gpa=gpg.exec(msg.content);
+
+              var epg=/([0-9 -]+)ep/;
+              var epa=epg.exec(msg.content);
+
+              var spg=/([0-9 -]+)sp/;
+              var spa=spg.exec(msg.content);
+
+              var cpg=/([0-9 -]+)cp/;
+              var cpa=cpg.exec(msg.content);
+
+
+			  output="";
+
+              _.each(msg.selected, function(obj) {
+              var token, character;
+              token = getObj('graphic', obj._id);
+              if (token) {
+                  character = getObj('character', token.get('represents'));
+              }
+              if (character) {
+				  partycounter++;
+	              var name = getAttrByName(character.id, "character_name");
+	              var pp = getattr(character.id, "pp")*1;
+	              var gp = getattr(character.id, "gp")*1;                  
+	              var ep = getattr(character.id, "ep")*1;                  
+	              var sp = getattr(character.id, "sp")*1;
+	              var cp = getattr(character.id, "cp")*1;
+
+				  // ! cmpay
+				  var startamount = [pp,gp,ep,sp,cp];
+				  if (ppa !== null) startamount=cm_changemoney(startamount,ppa[0]);
+				  if (gpa !== null) startamount=cm_changemoney(startamount,gpa[0]);
+				  if (epa !== null) startamount=cm_changemoney(startamount,epa[0]);
+				  if (spa !== null) startamount=cm_changemoney(startamount,spa[0]);
+				  if (cpa !== null) startamount=cm_changemoney(startamount,cpa[0]);
+				  
+				  output+="<br><b>"+name+"</b> has ";
+				if (startamount == "ERROR: Not enough cash.") output+="not enough cash!";
+					else {
+					setattr(character.id,"pp",parseInt(startamount[0])); output+="<br> "+startamount[0]+"pp";
+					setattr(character.id,"gp",parseInt(startamount[1])); output+="<br> "+startamount[1]+"gp";
+					setattr(character.id,"ep",parseInt(startamount[2])); output+="<br> "+startamount[2]+"ep";
+					setattr(character.id,"sp",parseInt(startamount[3])); output+="<br> "+startamount[3]+"sp";
+					setattr(character.id,"cp",parseInt(startamount[4])); output+="<br> "+startamount[4]+"cp";
+					}            
+                  
+              }
+              
+		      });
+              sendChat (scname,"/w gm &{template:desc} {{desc=<b>Cashing out - it's payday!</b><hr>"+output+"}}");
+                      
+      }
+   
    
    
 if (msg.content.startsWith("!cmhoard")== true)
@@ -264,4 +326,28 @@ if(attr){
 } 	
 }
 
-
+function cm_changemoney(startamount,addamount)
+	{
+		if (addamount !== null) {
+		var currency=addamount.slice(-2);
+		//log (currency);
+		var amount2=parseInt(addamount.substr(0,addamount.length-2));
+		//log(amount2);
+		var origamount=startamount;
+		//log (startamount+" and "+amount2+" / "+currency);
+		if (currency=="cp") startamount[4]+=amount2;
+		if (currency=="sp") startamount[3]+=amount2;
+		if (currency=="ep") startamount[2]+=amount2;
+		if (currency=="gp") startamount[1]+=amount2;
+		if (currency=="pp") startamount[0]+=amount2;
+		//log ("changed: "+startamount);
+		
+		while (startamount[4]<0) {startamount[4]+=10;startamount[3]--;} //cp
+		while (startamount[3]<0) {if (startamount[4]>10) {startamount[4]-=10;startamount[3]++} else {startamount[3]+=5;startamount[2]--;}} //sp
+		while (startamount[2]<0) {if (startamount[3]>5) {startamount[3]-=5;  startamount[4]++} else {startamount[2]+=2;startamount[1]--;}}   //ep
+		while (startamount[1]<0) {if (startamount[2]>2) {startamount[2]-=2;  startamount[1]++} else {startamount[1]+=10;startamount[0]--;}} //gp
+		while (startamount[0]<0) {if (startamount[1]>10) {startamount[1]-=10;  startamount[0]++} else return "ERROR: Not enough cash."} //pp
+		//log (startamount);
+		return startamount;
+		}
+	}
