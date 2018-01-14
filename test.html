@@ -1,0 +1,50 @@
+<html>
+<head>
+<script type="text/javascript">
+
+function cm_changemoney(startamount,addamount)
+	{
+		if (addamount !== null) {
+		var currency=addamount.slice(-2);
+		//log (currency);
+		var amount2=parseInt(addamount.substr(0,addamount.length-2));
+		//log(amount2);
+		var origamount=startamount;
+		//log (startamount+" and "+amount2+" / "+currency);
+		if (currency=="cp") startamount[4]+=amount2;
+		if (currency=="sp") startamount[3]+=amount2;
+		if (currency=="ep") startamount[2]+=amount2;
+		if (currency=="gp") startamount[1]+=amount2;
+		if (currency=="pp") startamount[0]+=amount2;
+		//log ("changed: "+startamount);
+		
+		while (startamount[4]<0) {startamount[4]+=10;startamount[3]--;} //cp
+		while (startamount[3]<0) {if (startamount[4]>10) {startamount[4]-=10;startamount[3]++} else {startamount[3]+=5;startamount[2]--;}} //sp
+		while (startamount[2]<0) {if (startamount[3]>5) {startamount[3]-=5;  startamount[4]++} else {startamount[2]+=2;startamount[1]--;}}   //ep
+		while (startamount[1]<0) {if (startamount[2]>2) {startamount[2]-=2;  startamount[1]++} else {startamount[1]+=10;startamount[0]--;}} //gp
+		while (startamount[0]<0) {if (startamount[1]>10) {startamount[1]-=10;  startamount[0]++} else return "ERROR: Not enough cash."} //pp
+		//log (startamount);
+		return startamount;
+		}
+	}
+
+
+var test1=[0,3,1,0,5];
+var test2=["0gp","-15cp","-15cp"];
+
+for(i=0;i<test2.length;i++)
+{
+document.writeln("Taking "+test2[i]+" from "+test1+": ");
+document.writeln(cm_changemoney(test1,test2[i]));
+document.writeln(": <b>"+(test1[0]*10+test1[1]+test1[2]/2+test1[3]/10+test1[4]/100)+"</b>");
+document.writeln("<p>");
+}
+
+
+
+</script>
+</head>
+<body>
+
+</body>
+</html>
