@@ -331,7 +331,7 @@ function cm_changemoney(startamount,addamount)
 		if (addamount !== null) {
 		var currency=addamount.slice(-2);
 		//log (currency);
-		var amount2=parseInt(addamount.substr(0,addamount.length-2));
+		var amount2=-parseInt(addamount.substr(0,addamount.length-2));
 		//log(amount2);
 		var origamount=startamount;
 		//log (startamount+" and "+amount2+" / "+currency);
