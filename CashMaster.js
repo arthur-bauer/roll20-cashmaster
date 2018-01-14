@@ -14,10 +14,10 @@ on('ready', function () {
 
 		  var v="0.5a";
 		  
-		  var usd=25; 
+		  var usd=110; 
 		  /* 
 			Change this if you want to have a rough estimation of a character's wealth in USD. 
-			Set it to something between 25 and 50 (25 USD per 1gp).	
+			After some research I believe a reasonable exchange ratio is 1 gp = 110 USD	
 			Set it to 0 to disable it completely.	  
 		  */
 		  
@@ -55,17 +55,14 @@ on('ready', function () {
                   if (sp!=0) output+=sp+" silver,  ";
                   if (cp!=0) output+=cp+" copper.";
                   
-                  output+="<br>Converted, this character has ";
-                  if (usd>0) output+="<span title='Equals roughly "+(Math.round((total*usd)/5)*5)+" USD'>";
-                  output+=total+" gp";
-                  if (usd>0) output+="</span>";
+                  output+="<br>Converted, this character has "+cm_usd(total)+" gp";
                   output+=" in total.<hr>";
               }
           });
           
           partytotal=Math.round(partytotal*100,0)/100;
           
-          output+= "<b><u>Party total: "+partytotal+" gp</u></b>}}";
+          output+= "<b><u>Party total: "+cm_usd(partytotal)+" gp</u></b>}}";
           sendChat (scname,output); 
 
           if (msg.content === "!cmhelp")
@@ -93,7 +90,7 @@ on('ready', function () {
               var cps=Math.round(rest);
               rest=(rest-cps)*partycounter;
               
-              sendChat (scname,"/w gm &{template:desc} {{desc=<b>Let's share this!</b><hr>Everyone receives the equivalent of <b>"+cashshare+" gp:</b> "+pps+" platinum, "+gps+" gold, "+eps+" electrum, "+sps+" silver, and "+cps+" copper.}}");
+              sendChat (scname,"/w gm &{template:desc} {{desc=<b>Let's share this!</b><hr>Everyone receives the equivalent of "+cm_usd(cashshare)+" gp: "+pps+" platinum, "+gps+" gold, "+eps+" electrum, "+sps+" silver, and "+cps+" copper.}}");
 
               _.each(msg.selected, function(obj) {
               var token, character;
@@ -351,3 +348,11 @@ function cm_changemoney(startamount,addamount)
 		return startamount;
 		}
 	}
+	
+function cm_usd(total,usd=110)
+	{
+	var output="";	
+	if (usd>0) output="<span style='display:inline;' title='Equals roughly "+(Math.round((total*usd)/5)*5)+" USD'>"+total+"</span>";
+	else output=total;
+	return output;
+	}	
