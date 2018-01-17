@@ -27,6 +27,7 @@ on('ready', function () {
       
          on('chat:message', function(msg) {
           if (msg.type !== "api" && !playerIsGM(msg.playerid)) return;
+		  if (msg.selected == null ){sendChat (scname,"/w gm **ERROR:** You need to select at least one character.");return;}
           if (msg.content.startsWith("!cm")!== true) return;
              var partytotal = 0;
              var output = "/w gm &{template:desc} {{desc=<b>Party's cash overview</b><hr>";
