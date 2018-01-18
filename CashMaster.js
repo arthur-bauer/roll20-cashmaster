@@ -12,16 +12,17 @@ arthurbauer@me.com
 on('ready', function () {
           'use strict';
 
-		  var v="0.5a";
+		  var v = "0.5a"; 				// version number
+		  var usd = 110;  				// conversion rate
 		  
-		  var usd=110; 
 		  /* 
 			Change this if you want to have a rough estimation of a character's wealth in USD. 
-			After some research I believe a reasonable exchange ratio is 1 gp = 110 USD	
+			After some research I believe a reasonable exchange ratio is roughly 1 gp = 110 USD	
 			Set it to 0 to disable it completely.	  
 		  */
 		  
-		  var scname="CashMaster";
+		  var scname="CashMaster";		// script name
+		  var rt="desc";           		// roll template used
       
 		  log(scname+" v"+v+" online. Select one or more party members, then use `!cmhelp` ");
       
@@ -30,7 +31,7 @@ on('ready', function () {
 		  if (msg.selected == null ){sendChat (scname,"/w gm **ERROR:** You need to select at least one character.");return;}
           if (msg.content.startsWith("!cm")!== true) return;
              var partytotal = 0;
-             var output = "/w gm &{template:desc} {{desc=<b>Party's cash overview</b><hr>";
+             var output = "/w gm &{template:"+rt+"} {{desc=<b>Party's cash overview</b><hr>";
              var partycounter = 0;
              var partymember = Object.entries(msg.selected).length;
           _.each(msg.selected, function(obj) {
@@ -91,7 +92,7 @@ on('ready', function () {
               var cps=Math.round(rest);
               rest=(rest-cps)*partycounter;
               
-              sendChat (scname,"/w gm &{template:desc} {{desc=<b>Let's share this!</b><hr>Everyone receives the equivalent of "+cm_usd(cashshare)+" gp: "+pps+" platinum, "+gps+" gold, "+eps+" electrum, "+sps+" silver, and "+cps+" copper.}}");
+              sendChat (scname,"/w gm &{template:"+rt+"} {{desc=<b>Let's share this!</b><hr>Everyone receives the equivalent of "+cm_usd(cashshare)+" gp: "+pps+" platinum, "+gps+" gold, "+eps+" electrum, "+sps+" silver, and "+cps+" copper.}}");
 
               _.each(msg.selected, function(obj) {
               var token, character;
@@ -163,7 +164,7 @@ on('ready', function () {
               }
               
 		      });
-              sendChat (scname,"/w gm &{template:desc} {{desc=<b>Cashing out - it's payday!</b><hr>"+output+"}}");
+              sendChat (scname,"/w gm &{template:"+rt+"} {{desc=<b>Cashing out - it's payday!</b><hr>"+output+"}}");
                       
       }
     
@@ -225,7 +226,7 @@ on('ready', function () {
               }
               
 		      });
-              sendChat (scname,"/w gm &{template:desc} {{desc=<b>Cashing out - it's payday!</b><hr>"+output+"}}");
+              sendChat (scname,"/w gm &{template:"+rt+"} {{desc=<b>Cashing out - it's payday!</b><hr>"+output+"}}");
                       
       }
    
@@ -282,7 +283,7 @@ if (msg.content.startsWith("!cmhoard")== true)
               }
               
 		      });
-              sendChat (scname,"/w gm &{template:desc} {{desc=<b>You are splitting up the coins among you</b><hr>"+output+"}}");                      
+              sendChat (scname,"/w gm &{template:"+rt+"} {{desc=<b>You are splitting up the coins among you</b><hr>"+output+"}}");                      
       }        
     
     
