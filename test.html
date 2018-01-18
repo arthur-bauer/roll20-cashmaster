@@ -29,14 +29,23 @@ function cm_changemoney(startamount,addamount)
 	}
 
 
-var test1=[0,5,0,0,5000];
-var test2=["1pp","5gp","500pp","1cp","77sp"];
+function cm_usd(total,usd=110)
+	{
+	var output="";	
+	if (usd>0) output="<span style='display:inline;' title='Equals roughly "+(Math.round((total*usd)/5)*5)+" USD'>"+total+" gp</span>";
+	else output=total;
+	return output;
+	}
+	
+	
+var test1=[0,50,0,0,50];
+var test2=["1cp","1pp","5gp","500pp","-1cp","1ep","77sp"];
 
 for(i=0;i<test2.length;i++)
 {
-document.writeln("Taking "+test2[i]+" from "+test1+": ");
-document.writeln(cm_changemoney(test1,test2[i]));
-document.writeln(": <b>"+(test1[0]*10+test1[1]+test1[2]/2+test1[3]/10+test1[4]/100)+"</b>");
+document.writeln("Taking <i>"+test2[i]+"</i> from <b>"+test1+"</b> => ");
+document.writeln("<b>"+cm_changemoney(test1,test2[i])+"</b>");
+document.writeln("/ "+cm_usd(test1[0]*10+test1[1]+test1[2]/2+test1[3]/10+test1[4]/100)+"");
 document.writeln("<p>");
 }
 
