@@ -28,8 +28,8 @@ on('ready', function () {
       
          on('chat:message', function(msg) {
           if (msg.type !== "api" && !playerIsGM(msg.playerid)) return;
-		  if (msg.selected == null ){sendChat (scname,"/w gm **ERROR:** You need to select at least one character.");return;}
           if (msg.content.startsWith("!cm")!== true) return;
+		  if (msg.selected == null ){sendChat (scname,"/w gm **ERROR:** You need to select at least one character.");return;}
              var partytotal = 0;
              var output = "/w gm &{template:"+rt+"} {{desc=<b>Party's cash overview</b><hr>";
              var partycounter = 0;
@@ -337,14 +337,14 @@ function cm_changemoney(startamount,addamount)
 		if (currency=="ep") amount3=amount2/2;
 		if (currency=="gp") amount3=amount2;
 		if (currency=="pp") amount3=amount2*10;
-		if (startamount[0]*10+startamount[1]+startamount[2]/2+startamount[3]/10+startamount[4]/100>-amount3) 
+		if (startamount[0]*10+startamount[1]+startamount[2]/2+startamount[3]/10+startamount[4]/100>=-amount3) 
 		{
 			startamount[4]+=amount3*100;		
 			while (startamount[4]<0) {startamount[4]+=10;startamount[3]--;} //cp
-			while (startamount[3]<0) {if (startamount[4]>10) {startamount[4]-=10;startamount[3]++} else {startamount[3]+=5;startamount[2]--;}} //sp
-			while (startamount[2]<0) {if (startamount[3]>5) {startamount[3]-=5;  startamount[4]++} else {startamount[2]+=2;startamount[1]--;}}   //ep
-			while (startamount[1]<0) {if (startamount[2]>2) {startamount[2]-=2;  startamount[1]++} else {startamount[1]+=10;startamount[0]--;}} //gp
-			while (startamount[0]<0) {if (startamount[1]>10) {startamount[1]-=10;  startamount[0]++} else {startamount=origamount;return "ERROR: Not enough cash.";}} //pp
+			while (startamount[3]<0) {if (startamount[4]>=10) {startamount[4]-=10;startamount[3]++} else {startamount[3]+=5;startamount[2]--;}} //sp
+			while (startamount[2]<0) {if (startamount[3]>=5) {startamount[3]-=5;  startamount[4]++} else {startamount[2]+=2;startamount[1]--;}}   //ep
+			while (startamount[1]<0) {if (startamount[2]>=2) {startamount[2]-=2;  startamount[1]++} else {startamount[1]+=10;startamount[0]--;}} //gp
+			while (startamount[0]<0) {if (startamount[1]>=10) {startamount[1]-=10;  startamount[0]++} else {startamount=origamount;return "ERROR: Not enough cash.";}} //pp
 			return startamount;
 		}
 		else return "ERROR: Not enough cash.";
