@@ -328,25 +328,25 @@ function cm_changemoney(startamount,addamount)
 	{
 		if (addamount !== null) {
 		var currency=addamount.slice(-2);
-		//log (currency);
 		var amount2=-parseInt(addamount.substr(0,addamount.length-2));
-		//log(amount2);
 		var origamount=startamount;
-		//log (startamount+" and "+amount2+" / "+currency);
-		if (currency=="cp") startamount[4]+=amount2;
-		if (currency=="sp") startamount[3]+=amount2;
-		if (currency=="ep") startamount[2]+=amount2;
-		if (currency=="gp") startamount[1]+=amount2;
-		if (currency=="pp") startamount[0]+=amount2;
-		//log ("changed: "+startamount);
-		
-		while (startamount[4]<0) {startamount[4]+=10;startamount[3]--;} //cp
-		while (startamount[3]<0) {if (startamount[4]>10) {startamount[4]-=10;startamount[3]++} else {startamount[3]+=5;startamount[2]--;}} //sp
-		while (startamount[2]<0) {if (startamount[3]>5) {startamount[3]-=5;  startamount[4]++} else {startamount[2]+=2;startamount[1]--;}}   //ep
-		while (startamount[1]<0) {if (startamount[2]>2) {startamount[2]-=2;  startamount[1]++} else {startamount[1]+=10;startamount[0]--;}} //gp
-		while (startamount[0]<0) {if (startamount[1]>10) {startamount[1]-=10;  startamount[0]++} else return "ERROR: Not enough cash."} //pp
-		//log (startamount);
-		return startamount;
+		var amount3=0;
+		if (currency=="cp") amount3=amount2/100;
+		if (currency=="sp") amount3=amount2/10;
+		if (currency=="ep") amount3=amount2/2;
+		if (currency=="gp") amount3=amount2;
+		if (currency=="pp") amount3=amount2*10;
+		if (startamount[0]*10+startamount[1]+startamount[2]/2+startamount[3]/10+startamount[4]/100>-amount3) 
+		{
+			startamount[4]+=amount3*100;		
+			while (startamount[4]<0) {startamount[4]+=10;startamount[3]--;} //cp
+			while (startamount[3]<0) {if (startamount[4]>10) {startamount[4]-=10;startamount[3]++} else {startamount[3]+=5;startamount[2]--;}} //sp
+			while (startamount[2]<0) {if (startamount[3]>5) {startamount[3]-=5;  startamount[4]++} else {startamount[2]+=2;startamount[1]--;}}   //ep
+			while (startamount[1]<0) {if (startamount[2]>2) {startamount[2]-=2;  startamount[1]++} else {startamount[1]+=10;startamount[0]--;}} //gp
+			while (startamount[0]<0) {if (startamount[1]>10) {startamount[1]-=10;  startamount[0]++} else {startamount=origamount;return "ERROR: Not enough cash.";}} //pp
+			return startamount;
+		}
+		else return "ERROR: Not enough cash.";
 		}
 	}
 	
