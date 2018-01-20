@@ -1,8 +1,12 @@
 # CashMaster
 
-A currency management script for the D&D 5e OGL sheets on roll20.net.
+A currency management script for the D&D 5e OGL and 5e Shaped sheets on Roll20.net.
 
 Please use `!cmhelp` for inline help and examples.
+
+## Setup
+
+Make sure you use the correct sheet setting (`OGL` or `5E-Shaped`).
 
 ## Usage
 
@@ -30,3 +34,4 @@ between party members, converting the amount into the best combination of gold, 
 4. `!cmadd 50gp` will add 50 gp to every selected character.
 5. `!cmhoard 50gp` will (more or less evenly) distribute 50 gp among the party members.
 6. `!cmpay 10gp` will subtract 10gp from each selected character. It will try to exchange the other coin types (e.g. it will use 1pp if the player doesn't have 10gp).
+

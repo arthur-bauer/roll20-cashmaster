@@ -21,17 +21,28 @@ on('ready', function () {
 			Set it to 0 to disable it completely.	  
 		  */
 		  
-		  var scname="CashMaster";		// script name
-		  var rt="desc";           		// roll template used
-      
+		  var scname = "CashMaster";		// script name
+		  
+		  log (globalconfig);
+		  var selectedsheet="OGL";		  // You can set this to "5E-Shaped" if you're using the Shaped sheet 
+		  
+		  // detecting useroptions from one-click
+		  if (globalconfig && globalconfig.cashmaster && globalconfig.cashmaster.useroptions) { selectedsheet = globalconfig.cashmaster.useroptions.selectedsheet;}
+		  var rt="";
+		  if (selectedsheet == "OGL") rt = ["desc","desc"];       	
+		  else if (selectedsheet == "5E-Shaped") rt = ["5e-shaped","freetext"];
+		   
 		  log(scname+" v"+v+" online. Select one or more party members, then use `!cmhelp` ");
       
+
+		  var pp,gp,ep,sp,cp,total,output,ppa,gpa,epa,spa,cpa,ppg,gpg,epg,spg,cpg,name,partycounter,tpken;
+
          on('chat:message', function(msg) {
           if (msg.type !== "api" && !playerIsGM(msg.playerid)) return;
           if (msg.content.startsWith("!cm")!== true) return;
-		  if (msg.selected == null ){sendChat (scname,"/w gm **ERROR:** You need to select at least one character.");return;}
+		  if (msg.selected === null ){sendChat (scname,"/w gm **ERROR:** You need to select at least one character.");return;}
              var partytotal = 0;
-             var output = "/w gm &{template:"+rt+"} {{desc=<b>Party's cash overview</b><hr>";
+             var output = "/w gm &{template:"+rt[0]+"} {{"+rt[1]+"=<b>Party's cash overview</b><hr>";
              var partycounter = 0;
              var partymember = Object.entries(msg.selected).length;
           _.each(msg.selected, function(obj) {
@@ -42,20 +53,20 @@ on('ready', function () {
               }
               if (character) {
 	              partycounter++;
-	              var name = getAttrByName(character.id, "character_name");
-                  var pp = getattr(character.id, "pp")*1;
-                  var gp = getattr(character.id, "gp")*1;                  
-                  var ep = getattr(character.id, "ep")*1;                  
-                  var sp = getattr(character.id, "sp")*1;
-                  var cp = getattr(character.id, "cp")*1;
-                  var total = Math.round((pp*10+gp+ep*0.5+cp/100+sp/10)*10000)/10000;
+	              name = getAttrByName(character.id, "character_name");
+                  pp = getattr(character.id, "pp")*1;
+                  gp = getattr(character.id, "gp")*1;                  
+                  ep = getattr(character.id, "ep")*1;                  
+                  sp = getattr(character.id, "sp")*1;
+                  cp = getattr(character.id, "cp")*1;
+                  total = Math.round((pp*10+gp+ep*0.5+cp/100+sp/10)*10000)/10000;
                   partytotal = total+partytotal;
                   output+= "<b>"+name+"</b><br>has ";
-                  if (pp!=0) output+=pp+" platinum, ";
-                  if (gp!=0) output+=gp+" gold, ";
-                  if (ep!=0) output+=ep+" electrum, ";
-                  if (sp!=0) output+=sp+" silver,  ";
-                  if (cp!=0) output+=cp+" copper.";
+                  if (pp!==0) output+=pp+" platinum, ";
+                  if (gp!==0) output+=gp+" gold, ";
+                  if (ep!==0) output+=ep+" electrum, ";
+                  if (sp!==0) output+=sp+" silver,  ";
+                  if (cp!==0) output+=cp+" copper.";
                   
                   output+="<br>Converted, this character has "+cm_usd(total)+" gp";
                   output+=" in total.<hr>";
@@ -70,7 +81,7 @@ on('ready', function () {
           if (msg.content === "!cmhelp")
 
 		  {
-			sendChat (scname,"/w gm <h2 id=\"usage\">Usage</h2><p>First, select one or several party members.</p><p>Then use</p><ul><li><code>!cm</code> to get an <strong>overview</strong> over the party’s cash,</li><li><code>!cmshare</code> to <strong>convert and share</strong> the money equally between party members, converting the amount into the best combination of gold, silver and copper (this should be used in smaller stores),</li><li><code>!cmconvert</code> to <strong>convert and share</strong> the money equally between party members, converting the amount into the best combination of platinum, gold, electrum, silver and copper (this should only be used in larger stores that have a fair amount of cash),</li><li><code>!cmadd [amount][currency]</code> to <strong>add</strong> an equal amount of money from each selected party member,</li><li><code>!cmhoard [amount][currency]</code> to <strong>share</strong> a certain amount of coins between the party members, like a found treasue. Note that in this case, no conversion between the different coin types is made - if a party of 5 shares 4 pp, then 4 party members receive one pp each, and the last member won’t get anything.</li><li><code>!cmpay [amount][currency]</code> to <strong>pay</strong> a certain amount of coins. The script will even try to take all higher and one lower coin type to get the full amount. E.g. to pay 1gp when the character has no gold, the script will use 1pp (and return 9gp), or it will take 2ep.</li></ul><p><strong>Note:</strong> You can add several coin values at once, e.g. <code>!cmhoard 50gp 150sp 2000cp</code></p><h3 id=\"examples\">Examples</h3><ol type=\"1\"><li><code>!cm</code> will show a cash overview.</li><li><code>!cmshare</code> will collect all the money and share it evenly on the members, using gp, sp and cp only (pp and ep will be converted). Can also be used for one character to ‘exchange’ money.</li><li><code>!cmconvert</code> - same as <code>!cmshare</code>, but will also use platinum and electrum.</li><li><code>!cmadd 50gp</code> will add 50 gp to every selected character.</li><li><code>!cmhoard 50gp</code> will (more or less evenly) distribute 50 gp among the party members.</li><li><code>!cmpay 10gp</code> will subtract 10gp from each selected character. It will try to exchange the other coin types (e.g. it will use 1pp if the player doesn’t have 10gp).</li></ol>");  
+			sendChat (scname,"/w gm <h2 id='setup'>Setup</h2><p>Make sure you use the correct sheet setting (<code>OGL</code> or <code>5E-Shaped</code>).</p><h2 id='usage'>Usage</h2><p>First, select one or several party members.</p><p>Then use</p><ul><li><code>!cm</code> to get an <strong>overview</strong> over the party’s cash,</li><li><code>!cmshare</code> to <strong>convert and share</strong> the money equally between party members, converting the amount into the best combination of gold, silver and copper (this should be used in smaller stores),</li><li><code>!cmconvert</code> to <strong>convert and share</strong> the money equally between party members, converting the amount into the best combination of platinum, gold, electrum, silver and copper (this should only be used in larger stores that have a fair amount of cash),</li><li><code>!cmadd [amount][currency]</code> to <strong>add</strong> an equal amount of money from each selected party member,</li><li><code>!cmhoard [amount][currency]</code> to <strong>share</strong> a certain amount of coins between the party members, like a found treasue. Note that in this case, no conversion between the different coin types is made - if a party of 5 shares 4 pp, then 4 party members receive one pp each, and the last member won’t get anything.</li><li><code>!cmpay [amount][currency]</code> to <strong>pay</strong> a certain amount of coins. The script will even try to take all higher and one lower coin type to get the full amount. E.g. to pay 1gp when the character has no gold, the script will use 1pp (and return 9gp), or it will take 2ep.</li></ul><p><strong>Note:</strong> You can add several coin values at once, e.g. <code>!cmhoard 50gp 150sp 2000cp</code></p><h3 id='examples'>Examples</h3><ol type='1'><li><code>!cm</code> will show a cash overview.</li><li><code>!cmshare</code> will collect all the money and share it evenly on the members, using gp, sp and cp only (pp and ep will be converted). Can also be used for one character to ‘exchange’ money.</li><li><code>!cmconvert</code> - same as <code>!cmshare</code>, but will also use platinum and electrum.</li><li><code>!cmadd 50gp</code> will add 50 gp to every selected character.</li><li><code>!cmhoard 50gp</code> will (more or less evenly) distribute 50 gp among the party members.</li><li><code>!cmpay 10gp</code> will subtract 10gp from each selected character. It will try to exchange the other coin types (e.g. it will use 1pp if the player doesn’t have 10gp).</li></ol>");  
 			  
 		  }	
     
@@ -92,7 +103,7 @@ on('ready', function () {
               var cps=Math.round(rest);
               rest=(rest-cps)*partycounter;
               
-              sendChat (scname,"/w gm &{template:"+rt+"} {{desc=<b>Let's share this!</b><hr>Everyone receives the equivalent of "+cm_usd(cashshare)+" gp: "+pps+" platinum, "+gps+" gold, "+eps+" electrum, "+sps+" silver, and "+cps+" copper.}}");
+              sendChat (scname,"/w gm &{template:"+rt[0]+"} {{"+rt[1]+"=<b>Let's share this!</b><hr>Everyone receives the equivalent of "+cm_usd(cashshare)+" gp: "+pps+" platinum, "+gps+" gold, "+eps+" electrum, "+sps+" silver, and "+cps+" copper.}}");
 
               _.each(msg.selected, function(obj) {
               var token, character;
@@ -117,23 +128,23 @@ on('ready', function () {
       }
 
     
-          if (msg.content.startsWith("!cmadd")== true)
+          if (msg.content.startsWith("!cmadd") === true)
           {
               
-              var ppg=/([0-9 -]+)pp/;
-              var ppa=ppg.exec(msg.content);
+              ppg=/([0-9 -]+)pp/;
+              ppa=ppg.exec(msg.content);
 
-              var gpg=/([0-9 -]+)gp/;
-              var gpa=gpg.exec(msg.content);
+              gpg=/([0-9 -]+)gp/;
+              gpa=gpg.exec(msg.content);
 
-              var epg=/([0-9 -]+)ep/;
-              var epa=epg.exec(msg.content);
+              epg=/([0-9 -]+)ep/;
+              epa=epg.exec(msg.content);
 
-              var spg=/([0-9 -]+)sp/;
-              var spa=spg.exec(msg.content);
+              spg=/([0-9 -]+)sp/;
+              spa=spg.exec(msg.content);
 
-              var cpg=/([0-9 -]+)cp/;
-              var cpa=cpg.exec(msg.content);
+              cpg=/([0-9 -]+)cp/;
+              cpa=cpg.exec(msg.content);
 
 			  output="";
 
@@ -145,13 +156,13 @@ on('ready', function () {
               }
               if (character) {
 				  partycounter++;
-	              var name = getAttrByName(character.id, "character_name");
-	              var pp = getattr(character.id, "pp")*1;
-	              var gp = getattr(character.id, "gp")*1;                  
-	              var ep = getattr(character.id, "ep")*1;                  
-	              var sp = getattr(character.id, "sp")*1;
-	              var cp = getattr(character.id, "cp")*1;
-	              var total = Math.round((pp*10+gp+ep*0.5+cp/100+sp/10)*10000)/10000;
+	              name = getAttrByName(character.id, "character_name");
+	              pp = getattr(character.id, "pp")*1;
+	              gp = getattr(character.id, "gp")*1;                  
+	              ep = getattr(character.id, "ep")*1;                  
+	              sp = getattr(character.id, "sp")*1;
+	              cp = getattr(character.id, "cp")*1;
+	              total = Math.round((pp*10+gp+ep*0.5+cp/100+sp/10)*10000)/10000;
 	              partytotal = total+partytotal;
 				  output+="<br><b>"+name+"</b>";
                   if (ppa) {setattr(character.id,"pp",parseInt(pp)+parseInt(ppa[1])); output+="<br> "+ppa[0];}
@@ -164,28 +175,28 @@ on('ready', function () {
               }
               
 		      });
-              sendChat (scname,"/w gm &{template:"+rt+"} {{desc=<b>Cashing out - it's payday!</b><hr>"+output+"}}");
+              sendChat (scname,"/w gm &{template:"+rt[0]+"} {{"+rt[1]+"=<b>Cashing out - it's payday!</b><hr>"+output+"}}");
                       
       }
     
-   if (msg.content.startsWith("!cmpay")== true)
+   if (msg.content.startsWith("!cmpay") === true)
           {
               
               
-              var ppg=/([0-9 -]+)pp/;
-              var ppa=ppg.exec(msg.content);
+              ppg=/([0-9 -]+)pp/;
+              ppa=ppg.exec(msg.content);
 
-              var gpg=/([0-9 -]+)gp/;
-              var gpa=gpg.exec(msg.content);
+              gpg=/([0-9 -]+)gp/;
+              gpa=gpg.exec(msg.content);
 
-              var epg=/([0-9 -]+)ep/;
-              var epa=epg.exec(msg.content);
+              epg=/([0-9 -]+)ep/;
+              epa=epg.exec(msg.content);
 
-              var spg=/([0-9 -]+)sp/;
-              var spa=spg.exec(msg.content);
+              spg=/([0-9 -]+)sp/;
+              spa=spg.exec(msg.content);
 
-              var cpg=/([0-9 -]+)cp/;
-              var cpa=cpg.exec(msg.content);
+              cpg=/([0-9 -]+)cp/;
+              cpa=cpg.exec(msg.content);
 
 
 			  output="";
@@ -198,12 +209,12 @@ on('ready', function () {
               }
               if (character) {
 				  partycounter++;
-	              var name = getAttrByName(character.id, "character_name");
-	              var pp = getattr(character.id, "pp")*1;
-	              var gp = getattr(character.id, "gp")*1;                  
-	              var ep = getattr(character.id, "ep")*1;                  
-	              var sp = getattr(character.id, "sp")*1;
-	              var cp = getattr(character.id, "cp")*1;
+	              name = getAttrByName(character.id, "character_name");
+	              pp = getattr(character.id, "pp")*1;
+	              gp = getattr(character.id, "gp")*1;                  
+	              ep = getattr(character.id, "ep")*1;                  
+	              sp = getattr(character.id, "sp")*1;
+	              cp = getattr(character.id, "cp")*1;
 
 				  // ! cmpay
 				  var startamount = [pp,gp,ep,sp,cp];
@@ -226,32 +237,32 @@ on('ready', function () {
               }
               
 		      });
-              sendChat (scname,"/w gm &{template:"+rt+"} {{desc=<b>Cashing out - it's payday!</b><hr>"+output+"}}");
+              sendChat (scname,"/w gm &{template:"+rt[0]+"} {{"+rt[1]+"=<b>Cashing out - it's payday!</b><hr>"+output+"}}");
                       
       }
    
    
    
-if (msg.content.startsWith("!cmhoard")== true)
+if (msg.content.startsWith("!cmhoard") === true)
           {
               
-              var ppg=/([0-9 -]+)pp/;
-              var ppa=ppg.exec(msg.content);
+              ppg=/([0-9 -]+)pp/;
+              ppa=ppg.exec(msg.content);
 
-              var gpg=/([0-9 -]+)gp/;
-              var gpa=gpg.exec(msg.content);
+              gpg=/([0-9 -]+)gp/;
+              gpa=gpg.exec(msg.content);
 
-              var epg=/([0-9 -]+)ep/;
-              var epa=epg.exec(msg.content);
+              epg=/([0-9 -]+)ep/;
+              epa=epg.exec(msg.content);
 
-              var spg=/([0-9 -]+)sp/;
-              var spa=spg.exec(msg.content);
+              spg=/([0-9 -]+)sp/;
+              spa=spg.exec(msg.content);
 
-              var cpg=/([0-9 -]+)cp/;
-              var cpa=cpg.exec(msg.content);
+              cpg=/([0-9 -]+)cp/;
+              cpa=cpg.exec(msg.content);
 
 			  output="";
-			  var partycounter = 0;
+			  partycounter = 0;
 				  
 			  _.each(msg.selected, function(obj) {
               var token, character;
@@ -261,12 +272,12 @@ if (msg.content.startsWith("!cmhoard")== true)
               }
               if (character) {
 				  partycounter++;
-	              var name = getAttrByName(character.id, "character_name");
-	              var pp = getattr(character.id, "pp")*1;
-	              var gp = getattr(character.id, "gp")*1;                  
-	              var ep = getattr(character.id, "ep")*1;                  
-	              var sp = getattr(character.id, "sp")*1;
-	              var cp = getattr(character.id, "cp")*1;
+	              name = getAttrByName(character.id, "character_name");
+	              pp = getattr(character.id, "pp")*1;
+	              gp = getattr(character.id, "gp")*1;                  
+	              ep = getattr(character.id, "ep")*1;                  
+	              sp = getattr(character.id, "sp")*1;
+	              cp = getattr(character.id, "cp")*1;
 
 				  if (ppa !== null) var ppt=cashsplit(ppa[1],partymember,partycounter);
 				  if (gpa !== null) var gpt=cashsplit(gpa[1],partymember,partycounter);
@@ -283,7 +294,7 @@ if (msg.content.startsWith("!cmhoard")== true)
               }
               
 		      });
-              sendChat (scname,"/w gm &{template:"+rt+"} {{desc=<b>You are splitting up the coins among you</b><hr>"+output+"}}");                      
+              sendChat (scname,"/w gm &{template:"+rt[0]+"} {{"+rt[1]+"=<b>You are splitting up the coins among you</b><hr>"+output+"}}");                      
       }        
     
     
