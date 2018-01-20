@@ -48,3 +48,18 @@
 * Bugfix for negative treasure
 * Merged cmshare and cmconvert routines
 * Changed to attr.setWithWorker to trigger weight recalc
+
+## v0.5
+**Feature update**  
+2018-01-20  
+*Changes from `v0.4.1` to `v0.5`:*
+
+* Added cmpay routine (+)
+* Readme updated
+* Adjusted conversion rate to 110 USD
+* Added routine to check if characters were selected
+* Small bugfix for cm_changemoney
+* Stored the roll template in a variable
+* Updating json
+* Fixed the output for 5E-Shaped
+* Adjusted script.json
