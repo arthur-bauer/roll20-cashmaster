@@ -1,0 +1,26 @@
+{
+  "name": "roll20-cashmaster",
+  "version": "0.6.0",
+  "description": "Roll20 Cashmaster script",
+  "main": "CashMaster.js",
+  "dependencies": {},
+  "devDependencies": {
+    "gulp": "^3.9.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arthur-bauer/roll20-cashmaster.git"
+  },
+  "keywords": [
+    "roll20"
+  ],
+  "author": "Arthur Bauer",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/arthur-bauer/roll20-cashmaster/issues"
+  },
+  "homepage": "https://github.com/arthur-bauer/roll20-cashmaster#readme"
+}
