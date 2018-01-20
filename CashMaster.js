@@ -23,7 +23,6 @@ on('ready', function () {
 		  
 		  var scname = "CashMaster";		// script name
 		  
-		  log (globalconfig);
 		  var selectedsheet="OGL";		  // You can set this to "5E-Shaped" if you're using the Shaped sheet 
 		  
 		  // detecting useroptions from one-click
@@ -40,7 +39,7 @@ on('ready', function () {
          on('chat:message', function(msg) {
           if (msg.type !== "api" && !playerIsGM(msg.playerid)) return;
           if (msg.content.startsWith("!cm")!== true) return;
-		  if (msg.selected === null ){sendChat (scname,"/w gm **ERROR:** You need to select at least one character.");return;}
+		  if (msg.selected == null ){sendChat (scname,"/w gm **ERROR:** You need to select at least one character.");return;}
              var partytotal = 0;
              var output = "/w gm &{template:"+rt[0]+"} {{"+rt[1]+"=<b>Party's cash overview</b><hr>";
              var partycounter = 0;
