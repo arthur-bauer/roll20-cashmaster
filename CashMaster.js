@@ -90,12 +90,12 @@ on('ready', function () {
               var cashshare=partytotal/partycounter;
               var newcounter=0;
               var pps=Math.floor(cashshare/10);
-              if (msg.content === "!cmshare") pps=0;
+              if (msg.content === "!cm --share") pps=0;
               var rest=cashshare-pps*10;
               var gps=Math.floor(rest);
               rest=(rest-gps)*2;
               var eps=Math.floor(rest);
-              if (msg.content === "!cmshare") eps=0;
+              if (msg.content === "!cm --share") eps=0;
               rest=(rest-eps)*5;
               var sps=Math.floor(rest);
               rest=(rest-sps)*10;
