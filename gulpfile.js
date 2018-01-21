@@ -1,15 +1,28 @@
+/*
+	
+npm install gulp --save-dev
+npm install gulp-string-replace --save-dev
+npm install gulp-file-insert --save-dev
+npm install gulp-markdown --save-dev
+npm install gulp-bump --save-dev
+npm install del --save-dev
+	
+*/	
+
 var gulp = require('gulp');
 var replace = require('gulp-string-replace');
 var gfi = require("gulp-file-insert");
 var markdown = require('gulp-markdown');
 var del = require('del');
-
-var p = require('./package.json')
-var version = p.version.replace('v','');
-console.log(version);
-
 var bump = require('gulp-bump');
+var p = require('./package.json')
 
+var version = p.version.replace('v','');
+
+
+
+// ### Version number bump routines
+//
 // Basic usage:
 // Will patch the version
 gulp.task('bump', function(){
@@ -37,6 +50,10 @@ gulp.task('bump-pre', function(){
 });
 
 
+// prepare the three readme versions
+// - a html version for inline help
+// - a md with converted linebreaks for the json
+// - and the clean md for the publish folder
 
 gulp.task('readme1',function()
 	{
@@ -51,6 +68,9 @@ gulp.task('readme1',function()
 	    .pipe(replace(new RegExp('\n', 'g'), '\\r'))
 	    .pipe(replace(new RegExp('"', 'g'), '\''))
         .pipe(gulp.dest('./tmp/package'))
+
+    gulp.src('./README.md')
+        .pipe(gulp.dest('./publish'))
 	
 	
 	});
