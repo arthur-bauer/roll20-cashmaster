@@ -1,6 +1,6 @@
 {
   "name": "roll20-cashmaster",
-  "version": "0.5.0",
+  "version": "0.5.1-0",
   "description": "Roll20 Cashmaster script",
   "main": "CashMaster.js",
   "dependencies": {
