@@ -75,6 +75,10 @@ gulp.task('readme1',function()
 	
 	});
 
+// Then, replace vn and readme content in Cashmaster.js
+// and script.json and write everything to the publish folder
+// The package.json still needs to be updated manually a bit (older versions)
+
 gulp.task('readme2',function()
 	{
 	gulp.src('./Cashmaster.js')
