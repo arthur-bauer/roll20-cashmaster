@@ -111,6 +111,18 @@ gulp.task('readme2',function()
 	});
 
 
+gulp.task('readme3', function() {
+
+	gulp.src("./publish/script.json")
+    .pipe(jsonlint())
+    .pipe(jsonlint.reporter());
+
+  gulp.src("./publish/*")
+ 	.pipe(gulp.dest("../roll20-api-scripts/CashMaster/"));
+   return del.sync('./tmp');
+});
+
+
 gulp.task('cleanup', function() {
   return del.sync('./tmp');
 });
