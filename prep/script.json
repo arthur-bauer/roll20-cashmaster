@@ -6,7 +6,7 @@
     "description": "%%README%%",
     "authors": "Arthur B",
     "roll20userid": "694750",
-    "useroptions": [{"name":"selectedsheet","type":"select","options:",["OGL","5E-Shaped"]},"default":"OGL","description":"Please select if you use the OGL or the 5E-Shaped sheet."],    
+    "useroptions": [{"name":"selectedsheet","type":"select","options":["OGL","5E-Shaped"],"default":"OGL","description":"Please select if you use the OGL or the 5E-Shaped sheet."}],    
     "dependencies": [],
     "modifies": {
     "attribute.characterid": "read",
