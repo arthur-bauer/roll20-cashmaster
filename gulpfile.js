@@ -57,7 +57,7 @@ gulp.task('bump-pre', function(){
 // - a md with converted linebreaks for the json
 // - and the clean md for the publish folder
 
-gulp.task('readme1',function()
+gulp.task('pub1',function()
 	{
     gulp.src('./README.md')
         .pipe(markdown())
@@ -86,7 +86,7 @@ gulp.task('readme1',function()
 // and script.json and write everything to the publish folder
 // The package.json still needs to be updated manually a bit (older versions)
 
-gulp.task('readme2',function()
+gulp.task('pub2',function()
 	{
 	gulp.src('./Cashmaster.js')
     .pipe(replace(new RegExp('%%version%%', 'g'), version))
@@ -111,7 +111,7 @@ gulp.task('readme2',function()
 	});
 
 
-gulp.task('readme3', function() {
+gulp.task('pub3', function() {
 
 	gulp.src("./publish/script.json")
     .pipe(jsonlint())

@@ -2,7 +2,7 @@
     "name": "CashMaster",
     "script": "CashMaster.js",
     "version": "%%version%%",
-    "previousversions": ["0.4.1"],
+    "previousversions": ["0.4.1","0.5"],
     "description": "%%README%%",
     "authors": "Arthur B",
     "roll20userid": "694750",
