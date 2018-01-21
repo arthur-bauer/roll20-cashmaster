@@ -34,18 +34,18 @@ on('ready', function () {
 		  log(scname+" v"+v+" online. Select one or more party members, then use `!cm --help` ");
       
 
-		  var pp,gp,ep,sp,cp,total,output,ppa,gpa,epa,spa,cpa,ppg,gpg,epg,spg,cpg,name,partycounter,tpken;
+		  var pp,gp,ep,sp,cp,total,output,ppa,gpa,epa,spa,cpa,ppg,gpg,epg,spg,cpg,name,partycounter,token,character;
 
          on('chat:message', function(msg) {
           if (msg.type !== "api" && !playerIsGM(msg.playerid)) return;
           if (msg.content.startsWith("!cm")!== true) return;
 		  if (msg.selected == null ){sendChat (scname,"/w gm **ERROR:** You need to select at least one character.");return;}
+            
+            
              var partytotal = 0;
-             var output = "/w gm &{template:"+rt[0]+"} {{"+rt[1]+"=<b>Party's cash overview</b><hr>";
              var partycounter = 0;
              var partymember = Object.entries(msg.selected).length;
           _.each(msg.selected, function(obj) {
-              var token, character;
               token = getObj('graphic', obj._id);
               if (token) {
                   character = getObj('character', token.get('represents'));
@@ -60,22 +60,11 @@ on('ready', function () {
                   cp = getattr(character.id, "cp")*1;
                   total = Math.round((pp*10+gp+ep*0.5+cp/100+sp/10)*10000)/10000;
                   partytotal = total+partytotal;
-                  output+= "<b>"+name+"</b><br>has ";
-                  if (pp!==0) output+=pp+" platinum, ";
-                  if (gp!==0) output+=gp+" gold, ";
-                  if (ep!==0) output+=ep+" electrum, ";
-                  if (sp!==0) output+=sp+" silver,  ";
-                  if (cp!==0) output+=cp+" copper.";
-                  
-                  output+="<br>Converted, this character has "+cm_usd(total)+" gp";
-                  output+=" in total.<hr>";
               }
           });
           
           partytotal=Math.round(partytotal*100,0)/100;
           
-          output+= "<b><u>Party total: "+cm_usd(partytotal)+" gp</u></b>}}";
-          sendChat (scname,output); 
 
           if (msg.content === "!cm --help")
 
@@ -296,6 +285,44 @@ if (msg.content.startsWith("!cm --hoard") === true)
               sendChat (scname,"/w gm &{template:"+rt[0]+"} {{"+rt[1]+"=<b>You are splitting up the coins among you</b><hr>"+output+"}}");                      
       }        
     
+    
+			var partytotal = 0;
+			var output = "/w gm &{template:"+rt[0]+"} {{"+rt[1]+"=<b>Party's cash overview</b><hr>";
+			var partycounter = 0;
+			var partymember = Object.entries(msg.selected).length;
+				_.each(msg.selected, function(obj) {
+				var token, character;
+				token = getObj('graphic', obj._id);
+				if (token) {
+				character = getObj('character', token.get('represents'));
+				}
+					if (character) {
+					partycounter++;
+					name = getAttrByName(character.id, "character_name");
+					pp = getattr(character.id, "pp")*1;
+					gp = getattr(character.id, "gp")*1;                  
+					ep = getattr(character.id, "ep")*1;                  
+					sp = getattr(character.id, "sp")*1;
+					cp = getattr(character.id, "cp")*1;
+					total = Math.round((pp*10+gp+ep*0.5+cp/100+sp/10)*10000)/10000;
+					partytotal = total+partytotal;
+					output+= "<b>"+name+"</b><br>has ";
+					if (pp!==0) output+=pp+" platinum, ";
+					if (gp!==0) output+=gp+" gold, ";
+					if (ep!==0) output+=ep+" electrum, ";
+					if (sp!==0) output+=sp+" silver,  ";
+					if (cp!==0) output+=cp+" copper.";
+					
+					output+="<br>Converted, this character has "+cm_usd(total)+" gp";
+					output+=" in total.<hr>";
+					}
+				});
+			
+			partytotal=Math.round(partytotal*100,0)/100;
+			
+			output+= "<b><u>Party total: "+cm_usd(partytotal)+" gp</u></b>}}";
+			sendChat (scname,output); 
+
     
 });
 
