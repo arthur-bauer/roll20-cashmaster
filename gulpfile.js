@@ -6,6 +6,7 @@ npm install gulp-file-insert --save-dev
 npm install gulp-markdown --save-dev
 npm install gulp-bump --save-dev
 npm install del --save-dev
+npm install --save-dev gulp-jsonlint
 	
 */	
 
@@ -15,8 +16,9 @@ var gfi = require("gulp-file-insert");
 var markdown = require('gulp-markdown');
 var del = require('del');
 var bump = require('gulp-bump');
-var p = require('./package.json')
+var jsonlint = require("gulp-jsonlint");
 
+var p = require('./package.json')
 var version = p.version.replace('v','');
 
 
@@ -73,6 +75,11 @@ gulp.task('readme1',function()
         .pipe(gulp.dest('./publish'))
 	
 	
+	gulp.src("./prep/script.json")
+    .pipe(jsonlint())
+    .pipe(jsonlint.reporter());
+
+
 	});
 
 // Then, replace vn and readme content in Cashmaster.js
@@ -95,6 +102,11 @@ gulp.task('readme2',function()
 	"%%README%%": "tmp/package/README.md",
 	}))  
 	.pipe(gulp.dest('./publish'))
+
+	gulp.src("./publish/script.json")
+    .pipe(jsonlint())
+    .pipe(jsonlint.reporter());
+
 	
 	});
 
