@@ -15,14 +15,13 @@ First, select one or several party members.
 Then use 
 
 - `!cm --overview` to get an **overview** over the party's cash, 
-- `!cm --share` to **convert and share** the money equally
-between party members, converting the amount into the best combination of gold, silver and copper (this should be used in smaller stores),
+- `!cm --share` to **convert and share** the money equally between party members, converting the amount into the best combination of gold, silver and copper (this should be used in smaller stores),
 - `!cm --convert` to **convert and share** the money equally between party members, converting the amount into the best combination of platinum, gold, electrum, silver and copper (this should only be used in larger stores that have a fair amount of cash),
-- `!cm --add [amount][currency]` to **add** an equal amount of money from each selected party member,
-- `!cm --hoard [amount][currency]` to **share** a certain amount of coins between the party members, like a found treasue. Note that in this case, no conversion between the different coin types is made - if a party of 5 shares 4 pp, then 4 party members receive one pp each, and the last member won't get anything.
-- `!cm --pay [amount][currency]` to **pay** a certain amount of coins. The script will even try to take all higher and one lower coin type to get the full amount. E.g. to pay 1gp when the character has no gold, the script will use 1pp (and return 9gp), or it will take 2ep. 
+- `!cm --add [amount][currency]` to **add** an equal amount of money to each selected party member,
+- `!cm --hoard [amount][currency]` to **split up** a certain amount of coins between the party members, like a found treasure. Note that in this case, no conversion between the different coin types is made - if a party of 5 shares 4 pp, then 4 party members receive one pp each, and the last member won't get anything.
+- `!cm --pay [amount][currency]` to let each selected party member **pay** a certain amount. The script will even try to take higher and lower coin types to get the full amount. E.g. to pay 1gp when the character has no gold, the script will use 1pp (and return 9gp), or it will take 2ep, 10sp or 100cp - or any other valid combination of coins - to pay the desired amount.
 
-**Note:** You can add several coin values at once, e.g. `!cm --hoard 50gp 150sp 2000cp`
+**Note:** You can use several coin values at once, e.g. `!cm --hoard 50gp 150sp 2000cp` or `!cm --pay 2sp 5cp`.
 
 
 ### Examples
