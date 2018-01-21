@@ -12,7 +12,7 @@ arthurbauer@me.com
 on('ready', function () {
           'use strict';
 
-		  var v = "0.6a"; 				// version number
+		  var v = "%%version%%"; 				// version number
 		  var usd = 110;  				// conversion rate
 		  
 		  /* 
@@ -80,7 +80,7 @@ on('ready', function () {
           if (msg.content === "!cm --help")
 
 		  {
-			sendChat (scname,"/w gm <h1>CashMaster</h1><p>A currency management script for the D&amp;D 5e OGL and 5e Shaped sheets on Roll20.net.</p><p>Please use <code>!cm --help</code> for inline help and examples.</p><h2>Setup</h2><p>Make sure you use the correct sheet setting (<code>OGL</code> or <code>5E-Shaped</code>).</p><h2>Usage</h2><p>First, select one or several party members.</p><p>Then use</p><ul><li><code>!cm</code> to get an <strong>overview</strong> over the party’s cash,</li><li><code>!cm --share</code> to <strong>convert and share</strong> the money equally between party members, converting the amount into the best combination of gold, silver and copper (this should be used in smaller stores),</li><li><code>!cm --convert</code> to <strong>convert and share</strong> the money equally between party members, converting the amount into the best combination of platinum, gold, electrum, silver and copper (this should only be used in larger stores that have a fair amount of cash),</li><li><code>!cm --add [amount][currency]</code> to <strong>add</strong> an equal amount of money from each selected party member,</li><li><code>!cm --hoard [amount][currency]</code> to <strong>share</strong> a certain amount of coins between the party members, like a found treasue. Note that in this case, no conversion between the different coin types is made - if a party of 5 shares 4 pp, then 4 party members receive one pp each, and the last member won’t get anything.</li><li><code>!cm --pay [amount][currency]</code> to <strong>pay</strong> a certain amount of coins. The script will even try to take all higher and one lower coin type to get the full amount. E.g. to pay 1gp when the character has no gold, the script will use 1pp (and return 9gp), or it will take 2ep.</li></ul><p><strong>Note:</strong> You can add several coin values at once, e.g. <code>!cm --hoard 50gp 150sp 2000cp</code></p><h3>Examples</h3><ol><li><code>!cm</code> will show a cash overview.</li><li><code>!cm --share</code> will collect all the money and share it evenly on the members, using gp, sp and cp only (pp and ep will be converted). Can also be used for one character to ‘exchange’ money.</li><li><code>!cm --convert</code> - same as <code>!cm --share</code>, but will also use platinum and electrum.</li><li><code>!cm --add 50gp</code> will add 50 gp to every selected character.</li><li><code>!cm --hoard 50gp</code> will (more or less evenly) distribute 50 gp among the party members.</li><li><code>!cm --pay 10gp</code> will subtract 10gp from each selected character. It will try to exchange the other coin types (e.g. it will use 1pp if the player doesn’t have 10gp).</li></ol>");  
+			sendChat (scname,"/w gm %%README%%");  
 			  
 		  }	
     

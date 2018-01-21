@@ -14,8 +14,7 @@ First, select one or several party members.
 
 Then use 
 
-- `!cm` to get an
-**overview** over the party's cash, 
+- `!cm` to get an **overview** over the party's cash, 
 - `!cm --share` to **convert and share** the money equally
 between party members, converting the amount into the best combination of gold, silver and copper (this should be used in smaller stores),
 - `!cm --convert` to **convert and share** the money equally between party members, converting the amount into the best combination of platinum, gold, electrum, silver and copper (this should only be used in larger stores that have a fair amount of cash),
