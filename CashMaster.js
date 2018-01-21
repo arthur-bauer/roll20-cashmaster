@@ -31,7 +31,7 @@ on('ready', function () {
 		  if (selectedsheet == "OGL") rt = ["desc","desc"];       	
 		  else if (selectedsheet == "5E-Shaped") rt = ["5e-shaped","freetext"];
 		   
-		  log(scname+" v"+v+" online. Select one or more party members, then use `!cmhelp` ");
+		  log(scname+" v"+v+" online. Select one or more party members, then use `!cm --help` ");
       
 
 		  var pp,gp,ep,sp,cp,total,output,ppa,gpa,epa,spa,cpa,ppg,gpg,epg,spg,cpg,name,partycounter,tpken;
