@@ -3,7 +3,7 @@
 CASHMASTER
 
 A currency management script for the D&D 5e OGL sheets on roll20.net.
-Please use `!cmhelp` for inline help and examples.
+Please use `!cm` for inline help and examples.
 
 arthurbauer@me.com
 
@@ -12,8 +12,8 @@ arthurbauer@me.com
 on('ready', function () {
           'use strict';
 
-		  var v = "%%version%%"; 				// version number
-		  var usd = 110;  				// conversion rate
+		  var v = "%%version%%"; // version number
+		  var usd = 110; // conversion rate
 		  
 		  /* 
 			Change this if you want to have a rough estimation of a character's wealth in USD. 
@@ -40,8 +40,7 @@ on('ready', function () {
           if (msg.type !== "api" && !playerIsGM(msg.playerid)) return;
           if (msg.content.startsWith("!cm")!== true) return;
 		  if (msg.selected == null ){sendChat (scname,"/w gm **ERROR:** You need to select at least one character.");return;}
-            
-            
+                        
              var partytotal = 0;
              var partycounter = 0;
              var partymember = Object.entries(msg.selected).length;
@@ -64,27 +63,25 @@ on('ready', function () {
           });
           
           partytotal=Math.round(partytotal*100,0)/100;
-          
 
-          if (msg.content === "!cm --help")
-
+          if (msg.content.includes("--help") || msg.content == "!cm")
 		  {
 			sendChat (scname,"/w gm %%README%%");  
 			  
 		  }	
     
-          if (msg.content === "!cm --share" || msg.content === "!cm --convert")
+          if (msg.content.includes("--share") || msg.content.includes("--convert"))
           {
               output="";
               var cashshare=partytotal/partycounter;
               var newcounter=0;
               var pps=Math.floor(cashshare/10);
-              if (msg.content === "!cm --share") pps=0;
+              if (msg.content.includes("--share")) pps=0;
               var rest=cashshare-pps*10;
               var gps=Math.floor(rest);
               rest=(rest-gps)*2;
               var eps=Math.floor(rest);
-              if (msg.content === "!cm --share") eps=0;
+              if (msg.content.includes("--share")) eps=0;
               rest=(rest-eps)*5;
               var sps=Math.floor(rest);
               rest=(rest-sps)*10;
@@ -116,7 +113,7 @@ on('ready', function () {
       }
 
     
-          if (msg.content.startsWith("!cm --add") === true)
+          if (msg.content.includes("--add"))
           {
               
               ppg=/([0-9 -]+)pp/;
@@ -167,7 +164,7 @@ on('ready', function () {
                       
       }
     
-   if (msg.content.startsWith("!cm --pay") === true)
+   if (msg.content.includes("--pay"))
           {
               
               
@@ -231,7 +228,7 @@ on('ready', function () {
    
    
    
-if (msg.content.startsWith("!cm --hoard") === true)
+if (msg.content.includes("--hoard"))
           {
               
               ppg=/([0-9 -]+)pp/;
@@ -286,6 +283,9 @@ if (msg.content.startsWith("!cm --hoard") === true)
       }        
     
     
+		    if (msg.content.includes("--add") || msg.content.includes("--pay") || msg.content.includes("--share") || msg.content.includes("--convert") || msg.content.includes("--hoard")  || msg.content.includes("--overview") )
+		
+				{
 			var partytotal = 0;
 			var output = "/w gm &{template:"+rt[0]+"} {{"+rt[1]+"=<b>Party's cash overview</b><hr>";
 			var partycounter = 0;
@@ -323,6 +323,8 @@ if (msg.content.startsWith("!cm --hoard") === true)
 			output+= "<b><u>Party total: "+cm_usd(partytotal)+" gp</u></b>}}";
 			sendChat (scname,output); 
 
+
+				}
     
 });
 
