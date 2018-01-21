@@ -6,6 +6,7 @@ npm install gulp-file-insert --save-dev
 npm install gulp-markdown --save-dev
 npm install gulp-bump --save-dev
 npm install del --save-dev
+npm install --save-dev gulp-jsonlint
 	
 */	
 
@@ -15,8 +16,9 @@ var gfi = require("gulp-file-insert");
 var markdown = require('gulp-markdown');
 var del = require('del');
 var bump = require('gulp-bump');
-var p = require('./package.json')
+var jsonlint = require("gulp-jsonlint");
 
+var p = require('./package.json')
 var version = p.version.replace('v','');
 
 
@@ -55,7 +57,7 @@ gulp.task('bump-pre', function(){
 // - a md with converted linebreaks for the json
 // - and the clean md for the publish folder
 
-gulp.task('readme1',function()
+gulp.task('pub1',function()
 	{
     gulp.src('./README.md')
         .pipe(markdown())
@@ -73,9 +75,18 @@ gulp.task('readme1',function()
         .pipe(gulp.dest('./publish'))
 	
 	
+	gulp.src("./prep/script.json")
+    .pipe(jsonlint())
+    .pipe(jsonlint.reporter());
+
+
 	});
 
-gulp.task('readme2',function()
+// Then, replace vn and readme content in Cashmaster.js
+// and script.json and write everything to the publish folder
+// The package.json still needs to be updated manually a bit (older versions)
+
+gulp.task('pub2',function()
 	{
 	gulp.src('./Cashmaster.js')
     .pipe(replace(new RegExp('%%version%%', 'g'), version))
@@ -91,8 +102,25 @@ gulp.task('readme2',function()
 	"%%README%%": "tmp/package/README.md",
 	}))  
 	.pipe(gulp.dest('./publish'))
+
+	gulp.src("./publish/script.json")
+    .pipe(jsonlint())
+    .pipe(jsonlint.reporter());
+
 	
 	});
+
+
+gulp.task('pub3', function() {
+
+	gulp.src("./publish/script.json")
+    .pipe(jsonlint())
+    .pipe(jsonlint.reporter());
+
+  gulp.src("./publish/*")
+ 	.pipe(gulp.dest("../roll20-api-scripts/CashMaster/"));
+   return del.sync('./tmp');
+});
 
 
 gulp.task('cleanup', function() {
