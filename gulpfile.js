@@ -123,6 +123,7 @@ gulp.task('pub3', function() {
 });
 
 
-gulp.task('cleanup', function() {
-  return del.sync('./tmp');
+gulp.task('cleanup2', function() {
+  del.sync('./tmp');
+  del.sync('./publish');
 });
