@@ -23,6 +23,10 @@
   },
   "scripts": {
     "build": "babel --presets es2015 CashMaster.js -o dist/CashMaster.js",
+    "bump-pre": "npm version preminor",
+    "bump-minor": "npm version minor",
+    "bump-patch": "npm version patch",
+    "bump-major": "npm version major",
     "lint": "eslint **/*.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
