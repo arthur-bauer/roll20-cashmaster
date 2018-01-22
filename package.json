@@ -22,7 +22,7 @@
     "gulp-string-replace": "^1.0.0"
   },
   "scripts": {
-    "build": "babel --presets es2015 CashMaster.js -o ./dist/CashMaster.js",
+    "build": "babel --presets es2015 CashMaster.js -o dist/CashMaster.js",
     "lint": "eslint **/*.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
