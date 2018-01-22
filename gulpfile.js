@@ -3,14 +3,38 @@ yarn
 */
 
 const gulp = require('gulp');
+const babel = require('gulp-babel');
+const eslint = require('gulp-eslint');
 const replace = require('gulp-string-replace');
 const gfi = require('gulp-file-insert');
 const markdown = require('gulp-markdown');
 const del = require('del');
+const bump = require('gulp-bump');
 const jsonlint = require('gulp-jsonlint');
 const p = require('./package.json');
 
 const version = p.version.replace('v', '');
+
+// ### Version number bump routines
+//
+// Basic usage:
+// Will patch the version
+
+const bumpVersion = (type) => {
+  gulp.src('./package.json')
+    .pipe(bump({ type }))
+    .pipe(gulp.dest('./'));
+};
+gulp.task('bump-major', () => bumpVersion('major'));
+gulp.task('bump-minor', () => bumpVersion('minor'));
+gulp.task('bump-patch', () => bumpVersion('patch'));
+gulp.task('bump-pre', () => bumpVersion('prepatch'));
+
+gulp.task('lint', () => gulp.src(['./sheet/**/*.js', './test/**/*.js'])
+  .pipe(eslint())
+  .pipe(eslint.format())
+  .pipe(eslint.failAfterError())
+);
 
 // prepare the three readme versions
 // - a html version for inline help
@@ -46,6 +70,9 @@ gulp.task('pub2', () => {
     .pipe(replace(new RegExp('%%version%%', 'g'), version))
     .pipe(gfi({
       '%%README%%': 'tmp/script/README.md',
+    }))
+    .pipe(babel({
+      presets: ['env']
     }))
     .pipe(gulp.dest('./publish'))
     .pipe(gulp.dest(`./publish/${version}`));

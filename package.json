@@ -16,18 +16,15 @@
     "eslint-plugin-jsx-a11y": "^6.0.3",
     "eslint-plugin-react": "^7.5.1",
     "gulp": "^3.9.1",
+    "gulp-babel": "^7.0.0",
+    "gulp-bump": "^3.0.0",
+    "gulp-eslint": "^4.0.1",
     "gulp-file-insert": "^1.0.3",
     "gulp-jsonlint": "^1.2.1",
     "gulp-markdown": "^2.0.1",
     "gulp-string-replace": "^1.0.0"
   },
   "scripts": {
-    "build": "babel --presets es2015 CashMaster.js -o dist/CashMaster.js",
-    "bump-major": "npm version major --no-git-tag-version",
-    "bump-minor": "npm version minor --no-git-tag-version",
-    "bump-patch": "npm version patch --no-git-tag-version",
-    "bump-pre": "npm version prepatch --no-git-tag-version",
-    "lint": "eslint **/*.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
