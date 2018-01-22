@@ -54,11 +54,11 @@ on('ready', function () {
       if (character) {
         partycounter++;
         name = getAttrByName(character.id, "character_name");
-        pp = parseInt(getattr(character.id, "pp"), 10) || 0;
-        gp = parseInt(getattr(character.id, "gp"), 10) || 0;
-        ep = parseInt(getattr(character.id, "ep"), 10) || 0;
-        sp = parseInt(getattr(character.id, "sp"), 10) || 0;
-        cp = parseInt(getattr(character.id, "cp"), 10) || 0;
+        pp = parseFloat(getattr(character.id, "pp")) || 0;
+        gp = parseFloat(getattr(character.id, "gp")) || 0;
+        ep = parseFloat(getattr(character.id, "ep")) || 0;
+        sp = parseFloat(getattr(character.id, "sp")) || 0;
+        cp = parseFloat(getattr(character.id, "cp")) || 0;
         total = Math.round((pp * 10 + gp + ep * 0.5 + cp / 100 + sp / 10) * 10000) / 10000;
         partytotal = total + partytotal;
       }
@@ -138,11 +138,11 @@ on('ready', function () {
         if (character) {
           partycounter++;
           name = getAttrByName(character.id, "character_name");
-          pp = parseInt(getattr(character.id, "pp"), 10) || 0;
-          gp = parseInt(getattr(character.id, "gp"), 10) || 0;
-          ep = parseInt(getattr(character.id, "ep"), 10) || 0;
-          sp = parseInt(getattr(character.id, "sp"), 10) || 0;
-          cp = parseInt(getattr(character.id, "cp"), 10) || 0;
+          pp = parseFloat(getattr(character.id, "pp")) || 0;
+          gp = parseFloat(getattr(character.id, "gp")) || 0;
+          ep = parseFloat(getattr(character.id, "ep")) || 0;
+          sp = parseFloat(getattr(character.id, "sp")) || 0;
+          cp = parseFloat(getattr(character.id, "cp")) || 0;
           total = Math.round((pp * 10 + gp + ep * 0.5 + cp / 100 + sp / 10) * 10000) / 10000;
           partytotal = total + partytotal;
           output += "<br><b>" + name + "</b>";
@@ -198,11 +198,11 @@ on('ready', function () {
         if (character) {
           partycounter++;
           name = getAttrByName(character.id, "character_name");
-          pp = getattr(parseInt(character.id, "pp"), 10) || 0;
-          gp = getattr(parseInt(character.id, "gp"), 10) || 0;
-          ep = getattr(parseInt(character.id, "ep"), 10) || 0;
-          sp = getattr(parseInt(character.id, "sp"), 10) || 0;
-          cp = getattr(parseInt(character.id, "cp"), 10) || 0;
+          pp = parseFloat(getattr(character.id, "pp")) || 0;
+          gp = parseFloat(getattr(character.id, "gp")) || 0;
+          ep = parseFloat(getattr(character.id, "ep")) || 0;
+          sp = parseFloat(getattr(character.id, "sp")) || 0;
+          cp = parseFloat(getattr(character.id, "cp")) || 0;
 
           // ! cmpay
           var startamount = [pp, gp, ep, sp, cp];
@@ -259,11 +259,11 @@ on('ready', function () {
         if (character) {
           partycounter++;
           name = getAttrByName(character.id, "character_name");
-          pp = getattr(parseInt(character.id, "pp"), 10) || 0;
-          gp = getattr(parseInt(character.id, "gp"), 10) || 0;
-          ep = getattr(parseInt(character.id, "ep"), 10) || 0;
-          sp = getattr(parseInt(character.id, "sp"), 10) || 0;
-          cp = getattr(parseInt(character.id, "cp"), 10) || 0;
+          pp = parseFloat(getattr(character.id, "pp")) || 0;
+          gp = parseFloat(getattr(character.id, "gp")) || 0;
+          ep = parseFloat(getattr(character.id, "ep")) || 0;
+          sp = parseFloat(getattr(character.id, "sp")) || 0;
+          cp = parseFloat(getattr(character.id, "cp")) || 0;
 
           if (ppa !== null) var ppt = cashsplit(ppa[1], partymember, partycounter);
           if (gpa !== null) var gpt = cashsplit(gpa[1], partymember, partycounter);
@@ -311,11 +311,11 @@ on('ready', function () {
         if (character) {
           partycounter++;
           name = getAttrByName(character.id, "character_name");
-          pp = getattr(parseInt(character.id, "pp"), 10) || 0;
-          gp = getattr(parseInt(character.id, "gp"), 10) || 0;
-          ep = getattr(parseInt(character.id, "ep"), 10) || 0;
-          sp = getattr(parseInt(character.id, "sp"), 10) || 0;
-          cp = getattr(parseInt(character.id, "cp"), 10) || 0;
+          pp = parseFloat(getattr(character.id, "pp")) || 0;
+          gp = parseFloat(getattr(character.id, "gp")) || 0;
+          ep = parseFloat(getattr(character.id, "ep")) || 0;
+          sp = parseFloat(getattr(character.id, "sp")) || 0;
+          cp = parseFloat(getattr(character.id, "cp")) || 0;
           total = Math.round((pp * 10 + gp + ep * 0.5 + cp / 100 + sp / 10) * 10000) / 10000;
           partytotal = total + partytotal;
           output += "<b>" + name + "</b><br>has ";
