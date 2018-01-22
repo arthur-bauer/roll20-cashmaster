@@ -33,3 +33,6 @@ Then use
 5. `!cm --hoard 50gp` will (more or less evenly) distribute 50 gp among the party members.
 6. `!cm --pay 10gp` will subtract 10gp from each selected character. It will try to exchange the other coin types (e.g. it will use 1pp if the player doesn't have 10gp).
 
+## Credits
+
+With thanks to mlenser for his contributions.
