@@ -30,11 +30,10 @@ gulp.task('bump-minor', () => bumpVersion('minor'));
 gulp.task('bump-patch', () => bumpVersion('patch'));
 gulp.task('bump-pre', () => bumpVersion('prepatch'));
 
-gulp.task('lint', () => gulp.src(['./sheet/**/*.js', './test/**/*.js'])
+gulp.task('lint', () => gulp.src(['./*.js'])
   .pipe(eslint())
   .pipe(eslint.format())
-  .pipe(eslint.failAfterError())
-);
+  .pipe(eslint.failAfterError()));
 
 // prepare the three readme versions
 // - a html version for inline help
@@ -72,7 +71,7 @@ gulp.task('pub2', () => {
       '%%README%%': 'tmp/script/README.md',
     }))
     .pipe(babel({
-      presets: ['env']
+      presets: ['env'],
     }))
     .pipe(gulp.dest('./publish'))
     .pipe(gulp.dest(`./publish/${version}`));

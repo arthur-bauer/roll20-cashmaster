@@ -219,7 +219,7 @@ on('ready', () => {
     partytotal = Math.round(partytotal * 100, 0) / 100;
 
     if (msg.content.includes('--help') || msg.content === '!cm') {
-      sendChat(scname, '/w gm %%README%%');
+      sendChat(scname, `/w gm %%README%%`); // eslint-disable-line quotes
     }
 
     if (msg.content.includes('--share') || msg.content.includes('--convert')) {
