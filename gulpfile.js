@@ -7,45 +7,10 @@ const replace = require('gulp-string-replace');
 const gfi = require('gulp-file-insert');
 const markdown = require('gulp-markdown');
 const del = require('del');
-const bump = require('gulp-bump');
 const jsonlint = require('gulp-jsonlint');
 const p = require('./package.json');
 
 const version = p.version.replace('v', '');
-
-// ### Version number bump routines
-//
-// Basic usage:
-// Will patch the version
-gulp.task('bump', () => {
-  gulp.src('./*.json')
-    .pipe(bump())
-    .pipe(gulp.dest('./'));
-});
-
-gulp.task('bump-minor', () => {
-  gulp.src('./*.json')
-    .pipe(bump({
-      type: 'minor',
-    }))
-    .pipe(gulp.dest('./'));
-});
-
-gulp.task('bump-major', () => {
-  gulp.src('./*.json')
-    .pipe(bump({
-      type: 'major',
-    }))
-    .pipe(gulp.dest('./'));
-});
-
-gulp.task('bump-pre', () => {
-  gulp.src('./*.json')
-    .pipe(bump({
-      type: 'prerelease',
-    }))
-    .pipe(gulp.dest('./'));
-});
 
 // prepare the three readme versions
 // - a html version for inline help
