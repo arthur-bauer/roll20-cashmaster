@@ -5,7 +5,15 @@
   "main": "CashMaster.js",
   "dependencies": {},
   "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-core": "^6.26.0",
+    "babel-preset-es2015": "^6.24.1",
     "del": "^3.0.0",
+    "eslint": "^4.16.0",
+    "eslint-config-airbnb": "^16.1.0",
+    "eslint-plugin-import": "^2.8.0",
+    "eslint-plugin-jsx-a11y": "^6.0.3",
+    "eslint-plugin-react": "^7.5.1",
     "gulp": "^3.9.1",
     "gulp-bump": "^3.0.0",
     "gulp-file-insert": "^1.0.3",
@@ -14,6 +22,8 @@
     "gulp-string-replace": "^1.0.0"
   },
   "scripts": {
+    "build": "babel --presets es2015 CashMaster.js -o ./dist/CashMaster.js",
+    "lint": "eslint **/*.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
