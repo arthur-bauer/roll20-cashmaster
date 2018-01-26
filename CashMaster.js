@@ -157,7 +157,10 @@ on('ready', () => {
     rt = ['desc', 'desc'];
   } else if (selectedsheet === '5E-Shaped') {
     rt = ['5e-shaped', 'text'];
+  } else {
+    rt = ['default', `name=${scname} }}{{note`];
   }
+
 
   log(`${scname} v${v} online. Select one or more party members, then use \`!cm --help\``);
 
