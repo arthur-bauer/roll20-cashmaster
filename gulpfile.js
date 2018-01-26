@@ -43,13 +43,13 @@ gulp.task('lint', () => gulp.src(['./*.js'])
 gulp.task('pub1', () => {
   gulp.src('./README.md')
     .pipe(markdown())
-    .pipe(replace(/\\n/g), '\\r')
-    .pipe(replace(/"/g), '\'')
+    .pipe(replace(new RegExp('\n', 'g'), '')) // eslint-disable-line no-control-regex
+    .pipe(replace(new RegExp('"', 'g'), '\''))
     .pipe(gulp.dest('./tmp/script'));
 
   gulp.src('./README.md')
-    .pipe(replace(/\\n/g), '\\r')
-    .pipe(replace(/"/g), '\'')
+    .pipe(replace(new RegExp('\n', 'g'), '\\r')) // eslint-disable-line no-control-regex
+    .pipe(replace(new RegExp('"', 'g'), '\''))
     .pipe(gulp.dest('./tmp/package'));
 
   gulp.src('./README.md')
@@ -97,6 +97,11 @@ gulp.task('pub3', () => {
     .pipe(gulp.dest('../roll20-api-scripts/CashMaster/'));
   return del.sync('./tmp');
 });
+
+gulp.task('cleanup', () => {
+  del.sync('./tmp');
+});
+
 
 gulp.task('cleanup2', () => {
   del.sync('./tmp');
