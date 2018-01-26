@@ -30,10 +30,15 @@ gulp.task('bump-minor', () => bumpVersion('minor'));
 gulp.task('bump-patch', () => bumpVersion('patch'));
 gulp.task('bump-pre', () => bumpVersion('prepatch'));
 
-gulp.task('lint', () => gulp.src(['./*.js'])
-  .pipe(eslint())
-  .pipe(eslint.format())
-  .pipe(eslint.failAfterError()));
+gulp.task('lint', () => {
+  gulp.src(['./*.js'])
+    .pipe(eslint())
+    .pipe(eslint.format())
+    .pipe(eslint.failAfterError());
+  gulp.src('./prep/script.json')
+    .pipe(jsonlint())
+    .pipe(jsonlint.reporter());
+});
 
 // prepare the three readme versions
 // - a html version for inline help
