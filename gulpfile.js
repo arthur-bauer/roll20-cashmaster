@@ -40,6 +40,14 @@ gulp.task('lint', () => {
     .pipe(jsonlint.reporter());
 });
 
+gulp.task('lintfix', () => {
+  gulp.src(['./*.js'])
+    .pipe(eslint({ fix: true }))
+    .pipe(eslint.format())
+    .pipe(gulp.dest('./'));
+});
+
+
 // prepare the three readme versions
 // - a html version for inline help
 // - a md with converted linebreaks for the json
