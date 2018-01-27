@@ -96,6 +96,15 @@ const changeMoney = (startamount, addamount) => {
           total[2] -= 1;
         }
       } // sp
+      while (total[2] < 0) {
+        if (total[3] >= 5) {
+          total[3] -= 5;
+          total[2] += 1;
+        } else {
+          total[2] += 2;
+          total[1] -= 1;
+        }
+      } // ep
       while (total[1] < 0) {
         if (total[2] >= 2) {
           total[2] -= 2;
@@ -105,22 +114,13 @@ const changeMoney = (startamount, addamount) => {
           total[0] -= 1;
         }
       } // gp
-      while (total[2] < 0) {
-        if (total[3] >= 5) {
-          total[3] -= 5;
-          total[4] += 1;
-        } else {
-          total[2] += 2;
-          total[1] -= 1;
-        }
-      } // ep
       while (total[0] < 0) {
         if (total[1] >= 10) {
           total[1] -= 10;
           total[0] += 1;
         } else {
           total = origamount;
-          return 'ERROR: Not enough cash.';
+    return 'ERROR: Not enough cash.';
         }
       } // pp
       return total;
