@@ -10,6 +10,7 @@ arthurbauer@me.com
 */
 
 const cashsplit = (c, m, x) => {
+  //! cashsplit
   let ct = 0;
   let cr = 0;
   if (c !== null) {
@@ -23,6 +24,7 @@ const cashsplit = (c, m, x) => {
 };
 
 const getattr = (cid, att) => {
+  //! getattr
   const attr = findObjs({
     type: 'attribute',
     characterid: cid,
@@ -35,6 +37,7 @@ const getattr = (cid, att) => {
 };
 
 const setattr = (cid, att, val) => {
+  //! setattr
   const attr = findObjs({
     type: 'attribute',
     characterid: cid,
@@ -48,6 +51,7 @@ const setattr = (cid, att, val) => {
 };
 
 const changeMoney = (startamount, addamount) => {
+  //! changeMoney
   if (addamount !== null) {
     let total = startamount;
 
@@ -127,6 +131,7 @@ const changeMoney = (startamount, addamount) => {
 };
 
 const toUsd = (total, usd = 110) => {
+  //! toUsd
   let output = '';
   if (usd > 0) {
     output = `<span title="Equals roughly ${(Math.round((total * usd) / 5) * 5)} USD">${total}</span>`;
@@ -222,10 +227,12 @@ on('ready', () => {
     partytotal = Math.round(partytotal * 100, 0) / 100;
 
     if (msg.content.includes('--help') || msg.content === '!cm') {
+      //! help
       sendChat(scname, `/w gm %%README%%`); // eslint-disable-line quotes
     }
 
     if (msg.content.includes('--share') || msg.content.includes('--convert')) {
+      //! share and convert
       output = '';
       const cashshare = partytotal / partycounter;
       let newcounter = 0;
@@ -270,6 +277,7 @@ on('ready', () => {
     }
 
     if (msg.content.includes('--add')) {
+      //! add
       ppg = /([0-9 -]+)pp/;
       ppa = ppg.exec(msg.content);
 
@@ -336,6 +344,7 @@ on('ready', () => {
     }
 
     if (msg.content.includes('--pay')) {
+      //! pay
       ppg = /([0-9 -]+)pp/;
       ppa = ppg.exec(msg.content);
 
@@ -368,7 +377,6 @@ on('ready', () => {
           sp = parseFloat(getattr(character.id, 'sp')) || 0;
           cp = parseFloat(getattr(character.id, 'cp')) || 0;
 
-          // ! cmpay
           let startamount = [pp, gp, ep, sp, cp];
           if (ppa !== null) startamount = changeMoney(startamount, ppa[0]);
           if (gpa !== null) startamount = changeMoney(startamount, gpa[0]);
@@ -396,6 +404,7 @@ on('ready', () => {
     }
 
     if (msg.content.includes('--hoard')) {
+      //! hoard
       ppg = /([0-9 -]+)pp/;
       ppa = ppg.exec(msg.content);
 
@@ -478,6 +487,7 @@ on('ready', () => {
     }
 
     if (msg.content.includes('--add') || msg.content.includes('--pay') || msg.content.includes('--share') || msg.content.includes('--convert') || msg.content.includes('--hoard') || msg.content.includes('--overview')) {
+      //! overview
       partytotal = 0;
       partycounter = 0;
       output = `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Party’s cash overview</b><hr>`;
