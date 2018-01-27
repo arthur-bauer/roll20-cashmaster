@@ -157,6 +157,7 @@ const myoutput = (character, usd = 110) => {
   (sp / 10) +
   (cp / 100)
   ) * 10000) / 10000;
+  const weight = (pp + gp + ep + sp + cp) / 50;
 
   let output = `${name}: <b>${toUsd(total, usd)}</b><br><small>`;
   if (pp) output += `${pp} pp, `;
@@ -165,7 +166,7 @@ const myoutput = (character, usd = 110) => {
   if (sp) output += `${sp} sp, `;
   if (cp) output += `${cp} cp`;
 
-  output += '</small><br><br>';
+  output += ` (${weight} lbs)</small><br><br>`;
   return [output, total];
 };
 
