@@ -134,16 +134,45 @@ const toUsd = (total, usd = 110) => {
   //! toUsd
   let output = '';
   if (usd > 0) {
-    output = `<span title="Equals roughly ${(Math.round((total * usd) / 5) * 5)} USD">${total}</span>`;
+    output = `${total} gp <small>(~ ${(Math.round((total * usd) / 5) * 5)} USD)</small>`;
   } else {
-    output = total;
+    output = `${total} gp`;
   }
   return output;
 };
 
+const myoutput = (character, usd = 110) => {
+  //! myoutput
+
+  const name = getAttrByName(character.id, 'character_name');
+  const pp = parseFloat(getattr(character.id, 'pp')) || 0;
+  const gp = parseFloat(getattr(character.id, 'gp')) || 0;
+  const ep = parseFloat(getattr(character.id, 'ep')) || 0;
+  const sp = parseFloat(getattr(character.id, 'sp')) || 0;
+  const cp = parseFloat(getattr(character.id, 'cp')) || 0;
+  const total = Math.round((
+    (pp * 10) +
+  (ep * 0.5) +
+  gp +
+  (sp / 10) +
+  (cp / 100)
+  ) * 10000) / 10000;
+
+  let output = `${name}: <b>${toUsd(total, usd)}</b><br><small>`;
+  if (pp) output += `${pp} pp, `;
+  if (gp) output += `${gp} gp, `;
+  if (ep) output += `${ep} ep, `;
+  if (sp) output += `${sp} sp, `;
+  if (cp) output += `${cp} cp`;
+
+  output += '</small><br><br>';
+  return [output, total];
+};
+
+
 on('ready', () => {
   const v = '%%version%%'; // version number
-
+  const usd = 110;
   /*
   Change this if you want to have a rough estimation of a character’s wealth in USD.
   After some research I believe a reasonable exchange ratio is roughly 1 gp = 110 USD
@@ -187,6 +216,7 @@ on('ready', () => {
   let spg;
   let cpg;
   let name;
+  let usd2;
 
   on('chat:message', (msg) => {
     if (msg.type !== 'api' && !playerIsGM(msg.playerid)) return;
@@ -490,7 +520,9 @@ on('ready', () => {
       //! overview
       partytotal = 0;
       partycounter = 0;
-      output = `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Party’s cash overview</b><hr>`;
+      if (!msg.content.includes('--usd')) usd2 = 0;
+      else usd2 = usd;
+      output = `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Party’s cash overview</b><br><br>`;
       msg.selected.forEach((obj) => {
         const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
         let character;
@@ -498,45 +530,13 @@ on('ready', () => {
           character = getObj('character', token.get('represents'));
         }
         if (character) {
-          partycounter += 1;
-          name = getAttrByName(character.id, 'character_name');
-          pp = parseFloat(getattr(character.id, 'pp')) || 0;
-          gp = parseFloat(getattr(character.id, 'gp')) || 0;
-          ep = parseFloat(getattr(character.id, 'ep')) || 0;
-          sp = parseFloat(getattr(character.id, 'sp')) || 0;
-          cp = parseFloat(getattr(character.id, 'cp')) || 0;
-          total = Math.round((
-            (pp * 10) +
-            (ep * 0.5) +
-            gp +
-            (sp / 10) +
-            (cp / 100)
-          ) * 10000) / 10000;
-          partytotal = total + partytotal;
-          output += `<b>${name}</b><br>has `;
-          if (pp !== 0) {
-            output += `${pp} platinum, `;
-          }
-          if (gp !== 0) {
-            output += `${gp} gold, `;
-          }
-          if (ep !== 0) {
-            output += `${ep} electrum, `;
-          }
-          if (sp !== 0) {
-            output += `${sp} silver, `;
-          }
-          if (cp !== 0) {
-            output += `${cp} copper.`;
-          }
-
-          output += `<br>Converted, this character has ${toUsd(total)} gp`;
-          output += ' in total.<hr>';
+          output += myoutput(character, usd2)[0];
+          partytotal += myoutput(character, usd2)[1];
         }
       });
       partytotal = Math.round(partytotal * 100, 0) / 100;
 
-      output += `<b><u>Party total: ${toUsd(partytotal)} gp</u></b>}}`;
+      output += `<b><u>Party total: ${toUsd(partytotal, usd2)}</u></b>}}`;
       sendChat(scname, output);
     }
   });
