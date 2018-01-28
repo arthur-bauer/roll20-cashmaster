@@ -166,7 +166,7 @@ const myoutput = (character, usd = 110) => {
   if (sp) output += `${sp} sp, `;
   if (cp) output += `${cp} cp`;
 
-  output += ` (${weight} lbs)</small><br><br>`;
+  output += `<br>(${weight} lbs)</small><br><br>`;
   return [output, total];
 };
 
