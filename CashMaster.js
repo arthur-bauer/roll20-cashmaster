@@ -120,7 +120,7 @@ const changeMoney = (startamount, addamount) => {
           total[0] += 1;
         } else {
           total = origamount;
-    return 'ERROR: Not enough cash.';
+          return 'ERROR: Not enough cash.';
         }
       } // pp
       return total;
