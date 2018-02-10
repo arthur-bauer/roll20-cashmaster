@@ -14,7 +14,8 @@ First, select one or several party members.
 
 Then use 
 
-- `!cm --overview` to get an **overview** over the party's cash, 
+- `!cm --overview` to get an **overview** over the party's cash,
+	- `!cm --overview --usd` will also give you an overview and a rough conversion to USD (default value: 1 gp equals roughly 110 USD). 
 - `!cm --share` to **convert and share** the money equally between party members, converting the amount into the best combination of gold, silver and copper (this should be used in smaller stores),
 - `!cm --convert` to **convert and share** the money equally between party members, converting the amount into the best combination of platinum, gold, electrum, silver and copper (this should only be used in larger stores that have a fair amount of cash),
 - `!cm --add [amount][currency]` to **add** an equal amount of money to each selected party member,
