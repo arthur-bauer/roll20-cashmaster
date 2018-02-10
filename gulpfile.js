@@ -29,6 +29,7 @@ gulp.task('bump-major', () => bumpVersion('major'));
 gulp.task('bump-minor', () => bumpVersion('minor'));
 gulp.task('bump-patch', () => bumpVersion('patch'));
 gulp.task('bump-pre', () => bumpVersion('prepatch'));
+gulp.task('bump-prerelease', () => bumpVersion('prerelease'));
 
 gulp.task('lint', () => {
   gulp.src(['./*.js'])
