@@ -46,7 +46,7 @@ const setattr = (cid, att, val) => {
   if (typeof attr == "undefined" || attr == null) {
     const attr = createObj('attribute', { name: att, characterid: cid, current: parseFloat(val) });
   }
-  {
+  else {
     attr.setWithWorker({
       current: parseFloat(val),
     }); // .set()
