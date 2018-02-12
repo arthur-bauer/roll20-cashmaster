@@ -43,11 +43,15 @@ const setattr = (cid, att, val) => {
     characterid: cid,
     name: att,
   })[0];
-  if (attr) {
+  if (typeof attr == "undefined" || attr == null) {
+    const attr = createObj('attribute', { name: att, characterid: cid, current: parseFloat(val) });
+  }
+  {
     attr.setWithWorker({
       current: parseFloat(val),
     }); // .set()
   }
+
 };
 
 const changeMoney = (startamount, addamount) => {
