@@ -16,7 +16,7 @@ First, select one or several party members.
 
 - `!cm` or `!cm -help` or `!cm -h` will show this help overview
 - `!cm -overview` or `!cm -o` to get an **overview** over the party's cash
-	- `!cm -overview --usd` will also give you an overview and a rough conversion to USD (default value: 1 gp equals roughly 110 USD). 
+- `!cm -overview --usd` will also give you an overview and a rough conversion to USD (default value: 1 gp equals roughly 110 USD). 
 
 ### Payment commands
 
