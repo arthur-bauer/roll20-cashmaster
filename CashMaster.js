@@ -1,7 +1,7 @@
 /* global on log playerIsGM findObjs getObj getAttrByName sendChat globalconfig */
 
 /*
-CASHMASTER
+CASHMASTER %%version%%
 
 A currency management script for the D&D 5e OGL sheets on roll20.net.
 Please use `!cm` for inline help and examples.
@@ -224,7 +224,7 @@ on('ready', () => {
   on('chat:message', (msg) => {
     if (msg.type !== 'api' && !playerIsGM(msg.playerid)) return;
     if (msg.content.startsWith('!cm') !== true) return;
-    if (msg.selected === null) {
+    if (msg.selected == null) {
       sendChat(scname, '/w gm **ERROR:** You need to select at least one character.');
       return;
     }
