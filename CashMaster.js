@@ -199,7 +199,7 @@ on('ready', () => {
   }
 
 
-  log(`${scname} v${v} online. Select one or more party members, then use \`!cm --help\``);
+  log(`${scname} v${v} online. Select one or more party members, then use \`!cm -help\``);
 
   let pp;
   let gp;
@@ -259,25 +259,25 @@ on('ready', () => {
 
     partytotal = Math.round(partytotal * 100, 0) / 100;
 
-    if (msg.content.includes('--help') || msg.content === '!cm') {
+    if (msg.content.includes('-help') || msg.content === '!cm' || msg.content.includes('-h')) {
       //! help
       sendChat(scname, `/w gm %%README%%`); // eslint-disable-line quotes
     }
 
-    if (msg.content.includes('--share') || msg.content.includes('--convert')) {
+    if (msg.content.includes('-share') || msg.content.includes('-best-share') || msg.content.includes('-s') || msg.content.includes('-bs')) {
       //! share and convert
       output = '';
       const cashshare = partytotal / partycounter;
       let newcounter = 0;
       let pps = Math.floor(cashshare / 10);
-      if (msg.content.includes('--share')) {
+      if (msg.content.includes('-share') || msg.content.includes('-s')) {
         pps = 0;
       }
       let rest = cashshare - (pps * 10);
       const gps = Math.floor(rest);
       rest = (rest - gps) * 2;
       let eps = Math.floor(rest);
-      if (msg.content.includes('--share')) {
+      if (msg.content.includes('-share') || msg.content.includes('-s')) {
         eps = 0;
       }
       rest = (rest - eps) * 5;
@@ -309,7 +309,7 @@ on('ready', () => {
       });
     }
 
-    if (msg.content.includes('--add')) {
+    if (msg.content.includes('-add') || msg.content.includes('-a')) {
       //! add
       ppg = /([0-9 -]+)pp/;
       ppa = ppg.exec(msg.content);
@@ -376,7 +376,7 @@ on('ready', () => {
       sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Cashing out - it’s payday!</b><hr>${output}}}`);
     }
 
-    if (msg.content.includes('--pay')) {
+    if (msg.content.includes('-pay') || msg.content.includes('-p')) {
       //! pay
       ppg = /([0-9 -]+)pp/;
       ppa = ppg.exec(msg.content);
@@ -436,8 +436,8 @@ on('ready', () => {
       sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Cashing out - it’s payday!</b><hr>${output}}}`);
     }
 
-    if (msg.content.includes('--hoard')) {
-      //! hoard
+    if (msg.content.includes('-loot') || msg.content.includes('-l')) {
+      //! loot
       ppg = /([0-9 -]+)pp/;
       ppa = ppg.exec(msg.content);
 
@@ -519,7 +519,7 @@ on('ready', () => {
       sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>You are splitting up the coins among you</b><hr>${output}}}`);
     }
 
-    if (msg.content.includes('--add') || msg.content.includes('--pay') || msg.content.includes('--share') || msg.content.includes('--convert') || msg.content.includes('--hoard') || msg.content.includes('--overview')) {
+    if (msg.content.includes('-add') || msg.content.includes('-pay') || msg.content.includes('-share') || msg.content.includes('-best-share') || msg.content.includes('-loot') || msg.content.includes('-overview') || msg.content.includes('-a') || msg.content.includes('-p') || msg.content.includes('-s') || msg.content.includes('-bs') || msg.content.includes('-l') || msg.content.includes('-o')) {
       //! overview
       partytotal = 0;
       partycounter = 0;
