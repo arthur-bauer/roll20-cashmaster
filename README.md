@@ -6,7 +6,7 @@ Please use `!cm` for inline help and examples.
 
 ## Setup
 
-Make sure you use the correct sheet setting (`OGL` or `5E-Shaped`).
+Make sure you use the correct sheet setting (`OGL`, `5E-Shaped`, or `other`).
 
 ## Usage
 
