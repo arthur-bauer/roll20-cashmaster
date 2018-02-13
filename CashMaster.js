@@ -1,7 +1,7 @@
 /* global on log playerIsGM findObjs getObj getAttrByName sendChat globalconfig */
 
 /*
-CASHMASTER
+CASHMASTER %%version%%
 
 A currency management script for the D&D 5e OGL sheets on roll20.net.
 Please use `!cm` for inline help and examples.
