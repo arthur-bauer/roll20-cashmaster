@@ -311,7 +311,7 @@ on('ready', () => {
         return;
       }
       let senderId = msg.playerid;
-
+      let donorName = '';
       msg.selected.forEach(function(obj) {
         let token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
         let donor = void 0;
@@ -325,13 +325,16 @@ on('ready', () => {
             return;       
           }
 
-          // Check that the donor is owned by the sender
-          var controllers = getattr(donor.id, 'controlledby');
-          if (controllers != null) {
-            var controllerArray = controllers.split(",");
-            if (!controllerArray.includes(senderId) && !playerIsGM(msg.playerid)) {
-              sendChat(scname, '**ERROR:** user must target a token they own.');
-              return;
+          // Verify that user has permission to access object
+          if(!playerIsGM(msg.playerid)){
+            // Check that the donor is owned by the sender
+            let controllers = donor.get('controlledby');
+            if (controllers != null) {
+              let controllerArray = controllers.split(",");
+              if (!controllerArray.includes(senderId)) {
+                sendChat(scname, '**ERROR:** user must target a token they own.');
+                return;
+              }
             }
           }
 
@@ -437,9 +440,9 @@ on('ready', () => {
           }
         }
       });
-      sendChat(scname, '/w gm &{template:' + rt[0] + '} {{' + rt[1] + '=<b>GM Transfer Report</b><br>' + donorName + ' > ' + targetName + '</b><hr>' + transactionOutput + donorOutput + targetOutput + '}}');
-      sendChat(scname, '/w ' + msg.who + ' &{template:' + rt[0] + '} {{' + rt[1] + '=<b>Sender Transfer Report</b><br>' + donorName + ' > ' + targetName + '</b><hr>' + output + transactionOutput + donorOutput + '}}');
-      sendChat(scname, '/w ' + targetName + ' &{template:' + rt[0] + '} {{' + rt[1] + '=<b>Recipient Transfer Report</b><br>' + donorName + ' > ' + targetName + '</b><hr>' + output + transactionOutput + targetOutput + '}}');
+      sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${donorName}>${targetName}</b><hr>${transactionOutput}${donorOutput}${targetOutput}}}`);
+      sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${donorName} > ${targetName}</b><hr>${output}${transactionOutput}${donorOutput}}}`);
+      sendChat(scname, `/w ${targetName} &{template:${rt[0]}} {{${rt[1]}=<b>Recipient Transfer Report</b><br>${donorName} > ${targetName}</b><hr>${output}${transactionOutput}${targetOutput}}}`);
       return;
     }
 
@@ -639,8 +642,10 @@ on('ready', () => {
               output += `<br> ${cpa[0]}`;
             }
           }
+          sendChat(scname, `/w ${name} &{template:${rt[0]}} {{${rt[1]}=<b>GM has Disbursed Coin</b><hr>${output}}}`);
         });
-        sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Cashing out - it’s payday!</b><hr>${output}}}`);
+        let s = msg.selected.length > 1 ? 's' : '';
+        sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Disbursement to Player${s}</b><hr>${output}}}`);
       }
 
       // Subtract coin from target
@@ -700,8 +705,10 @@ on('ready', () => {
               output += `<br> ${startamount[4]}cp`;
             }
           }
+          sendChat(scname, `/w ${name} &{template:${rt[0]}} {{${rt[1]}=<b>GM has Removed Coin</b><hr>${output}}}`);
         });
-        sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Cashing out - it’s payday!</b><hr>${output}}}`);
+        let s = msg.selected.length > 1 ? 's' : '';
+        sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Bill Collection from Player${s}</b><hr>${output}}}`);
       }
 
       // Evenly distribute sum of coin to group of players
@@ -783,9 +790,10 @@ on('ready', () => {
               setattr(character.id, 'cp', parseFloat(cp) + parseFloat(cpt));
               output += `<br> ${cpt}cp`;
             }
+            sendChat(scname, `/w ${name} &{template:${rt[0]}} {{${rt[1]}=<b>Distributing Loot</b><hr>${output}}}`);
           }
         });
-        sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>You are splitting up the coins among you</b><hr>${output}}}`);
+        sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Distributing Loot</b><hr>${output}}}`);
       }
 
       // Calculate party gold value
@@ -812,6 +820,10 @@ on('ready', () => {
         output += `<b><u>Party total: ${toUsd(partytotal, usd2)}</u></b>}}`;
         sendChat(scname, output);
       }
+    }
+    else if(msg.content.includes('-add') || msg.content.includes('-pay') || msg.content.includes('-share') || msg.content.includes('-best-share') || msg.content.includes('-loot') || msg.content.includes('-merge') || msg.content.includes('-overview') || msg.content.includes('-a') || msg.content.includes('-p') || msg.content.includes('-s') || msg.content.includes('-bs') || msg.content.includes('-l') || msg.content.includes('-o') || msg.content.includes('-m')) {
+      sendChat(scname, '/w ' + msg.who + ' **ERROR:** You do not have permission to use that action.');
+      sendChat(scname, '/w gm **WARNING:** ' + msg.who + ' attempted to use a GM-Only command.');
     }
   });
 });

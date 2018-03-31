@@ -17,7 +17,7 @@ First, select one or several party members if you are the DM or your own token i
 - `!cm` or `!cm -help` or `!cm -h` will show this help overview
 - `!cm - transfer "[receipient character name]" [amount][currency]` or `!cm -t "[receipient character name]" [amount][currency]` to transfer coins to the recipient.
 
-## DM Commands
+## GM Commands
 
 ### Base commands
 
