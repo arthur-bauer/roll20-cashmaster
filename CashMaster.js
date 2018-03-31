@@ -161,15 +161,15 @@ const toUsd = (total, usd = 110) => {
   //! toUsd
   let output = '';
   if (usd > 0) {
-    output = `${total} gp <small>(~ ${(Math.round((total * usd) / 5) * 5)} USD)</small>`;
+    output = `${total} gp <small><br>(~ ${(Math.round((total * usd) / 5) * 5)} USD)</small>`;
   } else {
     output = `${total} gp`;
   }
   return output;
 };
 
-const myoutput = (character, usd = 110) => {
-  //! myoutput
+const playerCoinStatus = (character, usd = 110) => {
+  //! playerCoinStatus
 
   const name = getAttrByName(character.id, 'character_name');
   const pp = parseFloat(getattr(character.id, 'pp')) || 0;
@@ -186,7 +186,7 @@ const myoutput = (character, usd = 110) => {
   ) * 10000) / 10000;
   const weight = (pp + gp + ep + sp + cp) / 50;
 
-  let output = `${name}: <b>${toUsd(total, usd)}</b><br><small>`;
+  let output = `${name}: <b>$${toUsd(total, usd)}</b><br><small>`;
   if (pp) output += `<em style='color:blue;'>${pp} pp</em>, `;
   if (gp) output += `<em style='color:orange;'>${gp} gp</em>, `;
   if (ep) output += `<em style='color:silver;'>${ep} ep</em>, `;
@@ -325,19 +325,6 @@ on('ready', () => {
             return;       
           }
 
-          // Verify that user has permission to access object
-          if(!playerIsGM(msg.playerid)){
-            // Check that the donor is owned by the sender
-            let controllers = donor.get('controlledby');
-            if (controllers != null) {
-              let controllerArray = controllers.split(",");
-              if (!controllerArray.includes(senderId)) {
-                sendChat(scname, '**ERROR:** user must target a token they own.');
-                return;
-              }
-            }
-          }
-
           // Verify donor has enough to perform transfer
           // Check if the player attempted to steal from another and populate the transaction data
           transactionOutput += '<br><b>Transaction Data</b>';
@@ -443,6 +430,23 @@ on('ready', () => {
       sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${donorName}>${targetName}</b><hr>${transactionOutput}${donorOutput}${targetOutput}}}`);
       sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${donorName} > ${targetName}</b><hr>${output}${transactionOutput}${donorOutput}}}`);
       sendChat(scname, `/w ${targetName} &{template:${rt[0]}} {{${rt[1]}=<b>Recipient Transfer Report</b><br>${donorName} > ${targetName}</b><hr>${output}${transactionOutput}${targetOutput}}}`);
+      return;
+    }
+
+    if(msg.content.includes('-status') || msg.content.includes('-s')) {
+      let output = '';
+
+      msg.selected.forEach(function(obj) {
+        let token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
+        let character = void 0;
+        if (token) {
+          character = getObj('character', token.get('represents'));
+        }
+        if (character) {
+          var coinStatus = playerCoinStatus(character);
+          sendChat(scname, '/w ' + msg.who + ' &{template:' + rt[0] + '} {{' + rt[1] + '=<b>Coin Purse Status</b></b><hr>' + coinStatus[0] + '}}');
+        }
+      });
       return;
     }
 
@@ -811,8 +815,8 @@ on('ready', () => {
             character = getObj('character', token.get('represents'));
           }
           if (character) {
-            output += myoutput(character, usd2)[0];
-            partytotal += myoutput(character, usd2)[1];
+            output += playerCoinStatus(character, usd2)[0];
+            partytotal += playerCoinStatus(character, usd2)[1];
           }
         });
         partytotal = Math.round(partytotal * 100, 0) / 100;
