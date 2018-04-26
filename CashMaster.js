@@ -222,7 +222,7 @@ on('ready', () => {
   let usd2;
 
   on('chat:message', (msg) => {
-    if (msg.type !== 'api' && !playerIsGM(msg.playerid)) return;
+    if (msg.type !== 'api' || !playerIsGM(msg.playerid)) return;
     if (msg.content.startsWith('!cm') !== true) return;
     if (msg.selected == null) {
       sendChat(scname, '/w gm **ERROR:** You need to select at least one character.');
