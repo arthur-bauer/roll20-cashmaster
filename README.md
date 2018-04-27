@@ -53,4 +53,4 @@ First, select one or several party members if you are the DM or your own token i
 
 ## Credits
 
-With thanks to [Kryx](https://app.roll20.net/users/277007/kryx)/[mlenser](https://github.com/mlenser) for his contributions.
+With thanks to [Kryx](https://app.roll20.net/users/277007/kryx)/[mlenser](https://github.com/mlenser) and [Michael G.](https://app.roll20.net/users/1583758/michael-g)/[VoltCruelerz](https://github.com/VoltCruelerz) for their contributions.
