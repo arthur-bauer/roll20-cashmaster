@@ -311,7 +311,7 @@ on('ready', () => {
       let donorName = '';
       msg.selected.forEach((obj) => {
         const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
-        let donor = undefined;
+        let donor;
         if (token) {
           donor = getObj('character', token.get('represents'));
         }
@@ -435,7 +435,7 @@ on('ready', () => {
 
       msg.selected.forEach((obj) => {
         const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
-        let character = undefined;
+        let character;
         if (token) {
           character = getObj('character', token.get('represents'));
         }
@@ -486,7 +486,7 @@ on('ready', () => {
 
         msg.selected.forEach((obj) => {
           const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
-          let character = undefined;
+          let character;
           if (token) {
             character = getObj('character', token.get('represents'));
           }
