@@ -249,19 +249,41 @@ on('ready', () => {
   on('chat:message', (msg) => {
     if (msg.type !== 'api') return;
     if (msg.content.startsWith('!cm') !== true) return;
+
+    if (msg.content.includes('-help') || msg.content === '!cm' || msg.content.includes('-h')) {
+      //! help
+      sendChat(scname, '/w ' + msg.who + ` %%README%%`); // eslint-disable-line quotes
+    }
+
+    if (msg.content.includes('start') || msg.content.includes('menu') || msg.content.includes('tool')) {
+      let menuContent = `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<h4>Cashmaster Toolbar</h4><hr>` +
+        `<h5>Universal Commands</h5>[Toolbar](!cm -tool)<br>[Status](!cm -status)<br>[Transfer](!cm -transfer ?{Recipient Name - Must surround with double quotes} ?{Currency to Transfer})`;
+      if(playerIsGM(msg.playerid)) {
+        menuContent = menuContent +
+        `<h5>GM-Only Commands</h5>`+
+        `<b>Base Commands</b>`+
+          `<br>[Readme](!cm -help)<br>[Party Overview](!cm -overview)`+
+          `<br>[Party USD](!cm -overview --usd)`+
+        `<br><b>Payment Commands</b>`+
+          `<br>[Add to Each Selected](!cm -add ?{Currency to Add})`+
+          `<br>[Bill Each Selected](!cm -pay ?{Currency to Bill})`+
+          `<br>[Split Among Selected](!cm -loot ?{Amount to Split})`+
+        `<br><b>Conversion Commands</b>`+
+          `<br>[Compress Coins of Selected](!cm -merge)`
+      }
+      menuContent = menuContent + `}}`;
+      sendChat(scname, menuContent);
+      return;
+    }
+
     if (msg.selected == null) {
       sendChat(scname, '/w gm **ERROR:** You need to select at least one character.');
       return;
     }
 
-    if (msg.content.includes('-help') || msg.content === '!cm' || msg.content.includes('-h')) {
-      //! help
-      sendChat(scname, `/w gm %%README%%`); // eslint-disable-line quotes
-    }
-
     // Coin Transfer between players
     if (msg.content.includes('-transfer') || msg.content.includes('-t')) {
-       
+
       ppg = /([0-9 -]+)pp/;
       ppa = ppg.exec(msg.content);
 
@@ -322,7 +344,7 @@ on('ready', () => {
           // Check that the sender is not attempting to send money to themselves
           if (donor.id == targetId) {
             sendChat(scname, '**ERROR:** target character must not be selected character.');
-            return;       
+            return;
           }
 
           // Verify donor has enough to perform transfer
@@ -497,7 +519,7 @@ on('ready', () => {
           if (character) {
             // Load player's existing account
             characterName = getAttrByName(character.id, 'character_name');
-            let playerAccount = 
+            let playerAccount =
             [
               (parseFloat(getattr(character.id, 'pp')) || 0),
               (parseFloat(getattr(character.id, 'gp')) || 0),
