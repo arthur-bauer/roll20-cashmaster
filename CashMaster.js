@@ -454,7 +454,7 @@ on('ready', () => {
       return;
     }
 
-    if (msg.content.includes('-status') || msg.content.includes('-s')) {
+    if (msg.content.includes('-status') || msg.content.includes('-x')) {
       output = '';
 
       msg.selected.forEach((obj) => {
