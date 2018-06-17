@@ -248,7 +248,7 @@ on('ready', () => {
   on('chat:message', (msg) => {
     if (msg.type !== 'api') return;
     if (msg.content.startsWith('!cm') !== true) return;
-    log("CM Command: " + msg.content);
+    log(`CM Command: ${msg.content}`);
     if (msg.content.includes('-help') || msg.content === '!cm' || msg.content.includes('-h')) {
       //! help
       sendChat(scname, `/w gm %%README%%`); // eslint-disable-line quotes
@@ -256,23 +256,23 @@ on('ready', () => {
 
     if (msg.content.includes('-menu') || msg.content.includes('-tool')) {
       let menuContent = `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<h3>Cash Master</h3><hr>` +
-        `<h4>Universal Commands</h4>[Toolbar](!cm -tool)` +
-          `<br>[Status](!cm -status)` +
-          `<br>[Transfer](!cm -transfer &#34;?{Full Name of Recipient}&#34; ?{Currency to Transfer})`;
-      if(playerIsGM(msg.playerid)) {
-        menuContent = menuContent +
-        `<h4>GM-Only Commands</h4>`+
-        `<b>Base Commands</b>`+
-          `<br>[Readme](!cm -help)<br>[Party Overview](!cm -overview)`+
-          `<br>[Party USD](!cm -overview --usd)`+
-        `<br><b>Payment Commands</b>`+
-          `<br>[Add to Each Selected](!cm -add ?{Currency to Add})`+
-          `<br>[Bill Each Selected](!cm -pay ?{Currency to Bill})`+
-          `<br>[Split Among Selected](!cm -loot ?{Amount to Split})`+
-        `<br><b>Conversion Commands</b>`+
-          `<br>[Compress Coins of Selected](!cm -merge)`
+        '<h4>Universal Commands</h4>[Toolbar](!cm -tool)' +
+          '<br>[Status](!cm -status)' +
+          '<br>[Transfer](!cm -transfer &#34;?{Full Name of Recipient}&#34; ?{Currency to Transfer})';
+      if (playerIsGM(msg.playerid)) {
+        menuContent = `${menuContent
+        }<h4>GM-Only Commands</h4>` +
+        '<b>Base Commands</b>' +
+          '<br>[Readme](!cm -help)<br>[Party Overview](!cm -overview)' +
+          '<br>[Party USD](!cm -overview --usd)' +
+        '<br><b>Payment Commands</b>' +
+          '<br>[Add to Each Selected](!cm -add ?{Currency to Add})' +
+          '<br>[Bill Each Selected](!cm -pay ?{Currency to Bill})' +
+          '<br>[Split Among Selected](!cm -loot ?{Amount to Split})' +
+        '<br><b>Conversion Commands</b>' +
+          '<br>[Compress Coins of Selected](!cm -merge)';
       }
-      menuContent = menuContent + `}}`;
+      menuContent += '}}';
       sendChat(scname, menuContent);
       return;
     }
