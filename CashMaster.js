@@ -248,14 +248,38 @@ on('ready', () => {
   on('chat:message', (msg) => {
     if (msg.type !== 'api') return;
     if (msg.content.startsWith('!cm') !== true) return;
-    if (msg.selected == null) {
-      sendChat(scname, '/w gm **ERROR:** You need to select at least one character.');
-      return;
-    }
-
+    log(`CM Command: ${msg.content}`);
     if (msg.content.includes('-help') || msg.content === '!cm' || msg.content.includes('-h')) {
       //! help
       sendChat(scname, `/w gm %%README%%`); // eslint-disable-line quotes
+    }
+
+    if (msg.content.includes('-menu') || msg.content.includes('-tool')) {
+      let menuContent = `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<h3>Cash Master</h3><hr>` +
+        '<h4>Universal Commands</h4>[Toolbar](!cm -tool)' +
+          '<br>[Status](!cm -status)' +
+          '<br>[Transfer](!cm -transfer &#34;?{Full Name of Recipient}&#34; ?{Currency to Transfer})';
+      if (playerIsGM(msg.playerid)) {
+        menuContent = `${menuContent
+        }<h4>GM-Only Commands</h4>` +
+        '<b>Base Commands</b>' +
+          '<br>[Readme](!cm -help)<br>[Party Overview](!cm -overview)' +
+          '<br>[Party USD](!cm -overview --usd)' +
+        '<br><b>Payment Commands</b>' +
+          '<br>[Add to Each Selected](!cm -add ?{Currency to Add})' +
+          '<br>[Bill Each Selected](!cm -pay ?{Currency to Bill})' +
+          '<br>[Split Among Selected](!cm -loot ?{Amount to Split})' +
+        '<br><b>Conversion Commands</b>' +
+          '<br>[Compress Coins of Selected](!cm -merge)';
+      }
+      menuContent += '}}';
+      sendChat(scname, menuContent);
+      return;
+    }
+
+    if (msg.selected == null) {
+      sendChat(scname, '/w gm **ERROR:** You need to select at least one character.');
+      return;
     }
 
     // Coin Transfer between players
@@ -275,12 +299,12 @@ on('ready', () => {
       cpg = /([0-9 -]+)cp/;
       cpa = cpg.exec(msg.content);
 
-      // Retrieve target from quoted section of input
+      // Retrieve target name
+      // Double quotes must be used because multiple players could have the same first name, last name, etc
       const startQuote = msg.content.indexOf('"');
       const endQuote = msg.content.lastIndexOf('"');
       if (startQuote >= endQuote) {
         sendChat(scname, '**ERROR:** You must specify a target by name within double quotes.');
-        log('no quote');
         return;
       }
       const targetName = msg.content.substring(startQuote + 1, endQuote);
@@ -291,7 +315,7 @@ on('ready', () => {
         name: targetName,
       });
       if (list.length === 0) {
-        sendChat(scname, `**ERROR:** No character exists by the name ${targetName}.`);
+        sendChat(scname, `**ERROR:** No character exists by the name ${targetName}.  Did you forget to include the surname?`);
         return;
       } else if (list.length > 1) {
         sendChat(scname, `**ERROR:** character name ${targetName} must be unique.`);
@@ -430,7 +454,7 @@ on('ready', () => {
       return;
     }
 
-    if (msg.content.includes('-status') || msg.content.includes('-s')) {
+    if (msg.content.includes('-status') || msg.content.includes('-x')) {
       output = '';
 
       msg.selected.forEach((obj) => {
