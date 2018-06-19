@@ -248,7 +248,7 @@ on('ready', () => {
   on('chat:message', (msg) => {
     if (msg.type !== 'api') return;
     if (msg.content.startsWith('!cm') !== true) return;
-    log(`CM Command: ${msg.content}`);
+    log("CM Command: " + msg.content);
     if (msg.content.includes('-help') || msg.content === '!cm' || msg.content.includes('-h')) {
       //! help
       sendChat(scname, `/w gm %%README%%`); // eslint-disable-line quotes
@@ -258,21 +258,22 @@ on('ready', () => {
       let menuContent = `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<h3>Cash Master</h3><hr>` +
         '<h4>Universal Commands</h4>[Toolbar](!cm -tool)' +
           '<br>[Status](!cm -status)' +
-          '<br>[Transfer](!cm -transfer &#34;?{Full Name of Recipient}&#34; ?{Currency to Transfer})';
-      if (playerIsGM(msg.playerid)) {
-        menuContent = `${menuContent
-        }<h4>GM-Only Commands</h4>` +
-        '<b>Base Commands</b>' +
-          '<br>[Readme](!cm -help)<br>[Party Overview](!cm -overview)' +
-          '<br>[Party USD](!cm -overview --usd)' +
-        '<br><b>Payment Commands</b>' +
-          '<br>[Add to Each Selected](!cm -add ?{Currency to Add})' +
-          '<br>[Bill Each Selected](!cm -pay ?{Currency to Bill})' +
-          '<br>[Split Among Selected](!cm -loot ?{Amount to Split})' +
-        '<br><b>Conversion Commands</b>' +
-          '<br>[Compress Coins of Selected](!cm -merge)';
+          '<br>[Transfer to PC](!cm -transfer &#34;?{Full Name of Recipient}&#34; ?{Currency to Transfer})' +
+          '<br>[Transfer to NPC](!cm -giveNPC &#34;?{What are you doing and who is it going to?}&#34; ?{Currency to Transfer})';
+      if(playerIsGM(msg.playerid)) {
+        menuContent = menuContent +
+        '<h4>GM-Only Commands</h4>'+
+        '<b>Base Commands</b>'+
+          '<br>[Readme](!cm -help)<br>[Party Overview](!cm -overview)'+
+          '<br>[Party USD](!cm -overview --usd)'+
+        '<br><b>Payment Commands</b>'+
+          '<br>[Give Each Selected](!cm -add ?{Currency to Add})'+
+          '<br>[Bill Each Selected](!cm -pay ?{Currency to Bill})'+
+          '<br>[Split Among Selected](!cm -loot ?{Amount to Split})'+
+        '<br><b>Conversion Commands</b>'+
+          '<br>[Compress Coins of Selected](!cm -merge)'
       }
-      menuContent += '}}';
+      menuContent = menuContent + '}}';
       sendChat(scname, menuContent);
       return;
     }
@@ -283,7 +284,7 @@ on('ready', () => {
     }
 
     // Coin Transfer between players
-    if (msg.content.includes('-transfer') || msg.content.includes('-t')) {
+    if (msg.content.includes('-transfer')) {
       ppg = /([0-9 -]+)pp/;
       ppa = ppg.exec(msg.content);
 
@@ -454,7 +455,8 @@ on('ready', () => {
       return;
     }
 
-    if (msg.content.includes('-status') || msg.content.includes('-x')) {
+    // Display coin count to player
+    if (msg.content.includes('-status')) {
       output = '';
 
       msg.selected.forEach((obj) => {
@@ -468,6 +470,134 @@ on('ready', () => {
           sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Coin Purse Status</b></b><hr>${coinStatus[0]}}}`);
         }
       });
+      return;
+    }
+
+    // Drop Currency or Give it to an NPC
+    if (msg.content.includes('-dropWithReason') || msg.content.includes('-giveNPC')) {
+      ppg = /([0-9 -]+)pp/;
+      ppa = ppg.exec(msg.content);
+
+      gpg = /([0-9 -]+)gp/;
+      gpa = gpg.exec(msg.content);
+
+      epg = /([0-9 -]+)ep/;
+      epa = epg.exec(msg.content);
+
+      spg = /([0-9 -]+)sp/;
+      spa = spg.exec(msg.content);
+
+      cpg = /([0-9 -]+)cp/;
+      cpa = cpg.exec(msg.content);
+
+      // Retrieve target name
+      // Double quotes must be used because multiple players could have the same first name, last name, etc
+      const startQuote = msg.content.indexOf('"');
+      const endQuote = msg.content.lastIndexOf('"');
+      if (startQuote >= endQuote) {
+        sendChat(scname, '**ERROR:** You must specify a target by name within double quotes.');
+        return;
+      }
+      const reason = msg.content.substring(startQuote + 1, endQuote);
+
+      output = '';
+      let transactionOutput = '';
+      let donorOutput = '';
+      let targetOutput = '';
+
+      if (msg.selected.length > 1) {
+        sendChat(scname, '**ERROR:** Transfers can only have on sender.');
+        return;
+      }
+      let donorName = '';
+      msg.selected.forEach((obj) => {
+        const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
+        let donor;
+        if (token) {
+          donor = getObj('character', token.get('represents'));
+        }
+        if (donor) {
+
+          // Verify donor has enough to perform transfer
+          // Check if the player attempted to steal from another and populate the transaction data
+          transactionOutput += '<br><b>Transaction Data</b>';
+          if (ppa !== null) {
+            const val = parseFloat(ppa[1]);
+            transactionOutput += `<br> ${ppa[0]}`;
+            if (val < 0 && !playerIsGM(msg.playerid)) {
+              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+              return;
+            }
+          }
+          if (gpa !== null) {
+            const val = parseFloat(gpa[1]);
+            transactionOutput += `<br> ${gpa[0]}`;
+            if (val < 0 && !playerIsGM(msg.playerid)) {
+              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+              return;
+            }
+          }
+          if (epa !== null) {
+            const val = parseFloat(epa[1]);
+            transactionOutput += `<br> ${epa[0]}`;
+            if (val < 0 && !playerIsGM(msg.playerid)) {
+              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+              return;
+            }
+          }
+          if (spa !== null) {
+            const val = parseFloat(spa[1]);
+            transactionOutput += `<br> ${spa[0]}`;
+            if (val < 0 && !playerIsGM(msg.playerid)) {
+              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+              return;
+            }
+          }
+          if (cpa !== null) {
+            const val = parseFloat(cpa[1]);
+            transactionOutput += `<br> ${cpa[0]}`;
+            if (val < 0 && !playerIsGM(msg.playerid)) {
+              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+              return;
+            }
+          }
+
+          // Load donor's existing account
+          donorName = getAttrByName(donor.id, 'character_name');
+          const dpp = parseFloat(getattr(donor.id, 'pp')) || 0;
+          const dgp = parseFloat(getattr(donor.id, 'gp')) || 0;
+          const dep = parseFloat(getattr(donor.id, 'ep')) || 0;
+          const dsp = parseFloat(getattr(donor.id, 'sp')) || 0;
+          const dcp = parseFloat(getattr(donor.id, 'cp')) || 0;
+          let donorAccount = [dpp, dgp, dep, dsp, dcp];
+
+          if (ppa !== null) donorAccount = changeMoney(donorAccount, ppa[0]);
+          if (gpa !== null) donorAccount = changeMoney(donorAccount, gpa[0]);
+          if (epa !== null) donorAccount = changeMoney(donorAccount, epa[0]);
+          if (spa !== null) donorAccount = changeMoney(donorAccount, spa[0]);
+          if (cpa !== null) donorAccount = changeMoney(donorAccount, cpa[0]);
+
+          // Verify donor has enough to perform transfer
+          donorOutput += `<br><b>${donorName}</b> has `;
+          if (donorAccount === 'ERROR: Not enough cash.') {
+            donorOutput += 'not enough cash!';
+          } else {
+            // Update donor account and update output
+            setattr(donor.id, 'pp', parseFloat(donorAccount[0]));
+            setattr(donor.id, 'gp', parseFloat(donorAccount[1]));
+            setattr(donor.id, 'ep', parseFloat(donorAccount[2]));
+            setattr(donor.id, 'sp', parseFloat(donorAccount[3]));
+            setattr(donor.id, 'cp', parseFloat(donorAccount[4]));
+            donorOutput += `<br> ${donorAccount[0]}pp`;
+            donorOutput += `<br> ${donorAccount[1]}gp`;
+            donorOutput += `<br> ${donorAccount[2]}ep`;
+            donorOutput += `<br> ${donorAccount[3]}sp`;
+            donorOutput += `<br> ${donorAccount[4]}cp`;
+          }
+        }
+      });
+      sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${donorName}</b><hr>${reason}<hr>${transactionOutput}${donorOutput}}}`);
+      sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${donorName}</b><hr>${reason}<hr>${output}${transactionOutput}${donorOutput}}}`);
       return;
     }
 
@@ -505,7 +635,7 @@ on('ready', () => {
       partytotal = Math.round(partytotal * 100, 0) / 100;
 
       // Merge a player's coin into the densest possible
-      if (msg.content.includes('-merge') || msg.content.includes('-m')) {
+      if (msg.content.includes('-merge')) {
         output = '';
 
         msg.selected.forEach((obj) => {
@@ -557,7 +687,7 @@ on('ready', () => {
       }
 
       // Reallocate existing resources of party as if all coin purses were thrown together and split evenly
-      if (msg.content.includes('-share') || msg.content.includes('-best-share') || msg.content.includes('-s') || msg.content.includes('-bs')) {
+      if (msg.content.includes('-share') || msg.content.includes('-best-share')) {
         //! share and convert
         output = '';
         const cashshare = partytotal / partycounter;
@@ -603,7 +733,7 @@ on('ready', () => {
       }
 
       // Add coin to target
-      if (msg.content.includes('-add') || msg.content.includes('-a')) {
+      if (msg.content.includes('-add')) {
         //! add
         ppg = /([0-9 -]+)pp/;
         ppa = ppg.exec(msg.content);
@@ -673,7 +803,7 @@ on('ready', () => {
       }
 
       // Subtract coin from target
-      if (msg.content.includes('-pay') || msg.content.includes('-p')) {
+      if (msg.content.includes('-pay') || msg.content.includes('-sub')) {
         //! pay
         ppg = /([0-9 -]+)pp/;
         ppa = ppg.exec(msg.content);
@@ -736,7 +866,7 @@ on('ready', () => {
       }
 
       // Evenly distribute sum of coin to group of players
-      if (msg.content.includes('-loot') || msg.content.includes('-l')) {
+      if (msg.content.includes('-loot')) {
         //! loot
         ppg = /([0-9 -]+)pp/;
         ppa = ppg.exec(msg.content);
@@ -821,7 +951,7 @@ on('ready', () => {
       }
 
       // Calculate party gold value
-      if (msg.content.includes('-add') || msg.content.includes('-pay') || msg.content.includes('-share') || msg.content.includes('-best-share') || msg.content.includes('-loot') || msg.content.includes('-overview') || msg.content.includes('-a') || msg.content.includes('-p') || msg.content.includes('-s') || msg.content.includes('-bs') || msg.content.includes('-l') || msg.content.includes('-o')) {
+      if (msg.content.includes('-add') || msg.content.includes('-pay') || msg.content.includes('-share') || msg.content.includes('-best-share') || msg.content.includes('-loot') || msg.content.includes('-overview')) {
         //! overview
         partytotal = 0;
         partycounter = 0;
@@ -844,7 +974,7 @@ on('ready', () => {
         output += `<b><u>Party total: ${toUsd(partytotal, usd2)}</u></b>}}`;
         sendChat(scname, output);
       }
-    } else if (msg.content.includes('-add') || msg.content.includes('-pay') || msg.content.includes('-share') || msg.content.includes('-best-share') || msg.content.includes('-loot') || msg.content.includes('-merge') || msg.content.includes('-overview') || msg.content.includes('-a') || msg.content.includes('-p') || msg.content.includes('-s') || msg.content.includes('-bs') || msg.content.includes('-l') || msg.content.includes('-o') || msg.content.includes('-m')) {
+    } else if (msg.content.includes('-add') || msg.content.includes('-pay') || msg.content.includes('-share') || msg.content.includes('-best-share') || msg.content.includes('-loot') || msg.content.includes('-merge') || msg.content.includes('-overview')) {
       sendChat(scname, `/w ${msg.who} **ERROR:** You do not have permission to use that action.`);
       sendChat(scname, `/w gm **WARNING:** ${msg.who} attempted to use a GM-Only command.`);
     }
