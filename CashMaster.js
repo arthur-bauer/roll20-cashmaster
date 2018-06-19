@@ -330,7 +330,7 @@ on('ready', () => {
       let targetOutput = '';
 
       if (msg.selected.length > 1) {
-        sendChat(scname, '**ERROR:** Transfers can only have on sender.');
+        sendChat(scname, '**ERROR:** Transfers can only have one sender.');
         return;
       }
       let donorName = '';
