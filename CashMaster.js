@@ -246,15 +246,16 @@ on('ready', () => {
   let usd2;
 
   on('chat:message', (msg) => {
+    const argTokens = msg.content.split(/\s+/);
     if (msg.type !== 'api') return;
     if (msg.content.startsWith('!cm') !== true) return;
     log(`CM Command: ${msg.content}`);
-    if (msg.content.includes('-help') || msg.content === '!cm' || msg.content.includes('-h')) {
+    if (argTokens.includes('-help') || msg.content === '!cm' || argTokens.includes('-h')) {
       //! help
       sendChat(scname, `/w gm %%README%%`); // eslint-disable-line quotes
     }
 
-    if (msg.content.includes('-menu') || msg.content.includes('-tool')) {
+    if (argTokens.includes('-menu') || argTokens.includes('-tool')) {
       let menuContent = `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<h3>Cash Master</h3><hr>` +
         '<h4>Universal Commands</h4>[Toolbar](!cm -tool)' +
           '<br>[Status](!cm -status)' +
@@ -283,7 +284,7 @@ on('ready', () => {
     }
 
     // Coin Transfer between players
-    if (msg.content.includes('-transfer') || msg.content.includes('-t')) {
+    if (argTokens.includes('-transfer') || argTokens.includes('-t')) {
       ppg = /([0-9 -]+)pp/;
       ppa = ppg.exec(msg.content);
 
@@ -329,7 +330,7 @@ on('ready', () => {
       let targetOutput = '';
 
       if (msg.selected.length > 1) {
-        sendChat(scname, '**ERROR:** Transfers can only have on sender.');
+        sendChat(scname, '**ERROR:** Transfers can only have one sender.');
         return;
       }
       let donorName = '';
@@ -454,7 +455,7 @@ on('ready', () => {
       return;
     }
 
-    if (msg.content.includes('-status') || msg.content.includes('-x')) {
+    if (argTokens.includes('-status') || argTokens.includes('-x')) {
       output = '';
 
       msg.selected.forEach((obj) => {
@@ -505,7 +506,7 @@ on('ready', () => {
       partytotal = Math.round(partytotal * 100, 0) / 100;
 
       // Merge a player's coin into the densest possible
-      if (msg.content.includes('-merge') || msg.content.includes('-m')) {
+      if (argTokens.includes('-merge') || argTokens.includes('-m')) {
         output = '';
 
         msg.selected.forEach((obj) => {
@@ -557,20 +558,20 @@ on('ready', () => {
       }
 
       // Reallocate existing resources of party as if all coin purses were thrown together and split evenly
-      if (msg.content.includes('-share') || msg.content.includes('-best-share') || msg.content.includes('-s') || msg.content.includes('-bs')) {
+      if (argTokens.includes('-share') || argTokens.includes('-best-share') || argTokens.includes('-s') || argTokens.includes('-bs')) {
         //! share and convert
         output = '';
         const cashshare = partytotal / partycounter;
         let newcounter = 0;
         let pps = Math.floor(cashshare / 10);
-        if (msg.content.includes('-share') || msg.content.includes('-s')) {
+        if (argTokens.includes('-share') || argTokens.includes('-s')) {
           pps = 0;
         }
         let rest = cashshare - (pps * 10);
         const gps = Math.floor(rest);
         rest = (rest - gps) * 2;
         let eps = Math.floor(rest);
-        if (msg.content.includes('-share') || msg.content.includes('-s')) {
+        if (argTokens.includes('-share') || argTokens.includes('-s')) {
           eps = 0;
         }
         rest = (rest - eps) * 5;
@@ -603,7 +604,7 @@ on('ready', () => {
       }
 
       // Add coin to target
-      if (msg.content.includes('-add') || msg.content.includes('-a')) {
+      if (argTokens.includes('-add') || argTokens.includes('-a')) {
         //! add
         ppg = /([0-9 -]+)pp/;
         ppa = ppg.exec(msg.content);
@@ -673,7 +674,7 @@ on('ready', () => {
       }
 
       // Subtract coin from target
-      if (msg.content.includes('-pay') || msg.content.includes('-p')) {
+      if (argTokens.includes('-pay') || argTokens.includes('-p')) {
         //! pay
         ppg = /([0-9 -]+)pp/;
         ppa = ppg.exec(msg.content);
@@ -736,7 +737,7 @@ on('ready', () => {
       }
 
       // Evenly distribute sum of coin to group of players
-      if (msg.content.includes('-loot') || msg.content.includes('-l')) {
+      if (argTokens.includes('-loot') || argTokens.includes('-l')) {
         //! loot
         ppg = /([0-9 -]+)pp/;
         ppa = ppg.exec(msg.content);
@@ -821,11 +822,11 @@ on('ready', () => {
       }
 
       // Calculate party gold value
-      if (msg.content.includes('-add') || msg.content.includes('-pay') || msg.content.includes('-share') || msg.content.includes('-best-share') || msg.content.includes('-loot') || msg.content.includes('-overview') || msg.content.includes('-a') || msg.content.includes('-p') || msg.content.includes('-s') || msg.content.includes('-bs') || msg.content.includes('-l') || msg.content.includes('-o')) {
+      if (argTokens.includes('-add') || argTokens.includes('-pay') || argTokens.includes('-share') || argTokens.includes('-best-share') || argTokens.includes('-loot') || argTokens.includes('-overview') || argTokens.includes('-a') || argTokens.includes('-p') || argTokens.includes('-s') || argTokens.includes('-bs') || argTokens.includes('-l') || argTokens.includes('-o')) {
         //! overview
         partytotal = 0;
         partycounter = 0;
-        if (!msg.content.includes('--usd')) usd2 = 0;
+        if (!argTokens.includes('--usd')) usd2 = 0;
         else usd2 = usd;
         output = `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Party’s cash overview</b><br><br>`;
         msg.selected.forEach((obj) => {
@@ -844,7 +845,7 @@ on('ready', () => {
         output += `<b><u>Party total: ${toUsd(partytotal, usd2)}</u></b>}}`;
         sendChat(scname, output);
       }
-    } else if (msg.content.includes('-add') || msg.content.includes('-pay') || msg.content.includes('-share') || msg.content.includes('-best-share') || msg.content.includes('-loot') || msg.content.includes('-merge') || msg.content.includes('-overview') || msg.content.includes('-a') || msg.content.includes('-p') || msg.content.includes('-s') || msg.content.includes('-bs') || msg.content.includes('-l') || msg.content.includes('-o') || msg.content.includes('-m')) {
+    } else if (argTokens.includes('-add') || argTokens.includes('-pay') || argTokens.includes('-share') || argTokens.includes('-best-share') || argTokens.includes('-loot') || argTokens.includes('-merge') || argTokens.includes('-overview') || argTokens.includes('-a') || argTokens.includes('-p') || argTokens.includes('-s') || argTokens.includes('-bs') || argTokens.includes('-l') || argTokens.includes('-o') || argTokens.includes('-m')) {
       sendChat(scname, `/w ${msg.who} **ERROR:** You do not have permission to use that action.`);
       sendChat(scname, `/w gm **WARNING:** ${msg.who} attempted to use a GM-Only command.`);
     }
