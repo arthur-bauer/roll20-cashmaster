@@ -9,6 +9,25 @@ Please use `!cm` for inline help and examples.
 arthurbauer@me.com
 */
 
+const initCM = () => {
+  // Initialize State object
+  if(!state.CashMaster){
+    log("Initializing CashMaster");
+    state.CashMaster = {
+      Party: [],
+      DefaultCharacterNames: {}
+    };
+  }
+  if(!state.CashMaster.Party){
+    log("Initializing CashMaster.Party");
+    state.CashMaster.Party = [];
+  }
+  if(!state.CashMaster.DefaultCharacterNames){
+    log("Initializing CashMaster.DefaultCharacterNames");
+    state.CashMaster.DefaultCharacterNames = {};
+  }
+}
+
 // How much each coing is worth of those below it.
 // In order: pp, gp, ep, sp
 const conversionRatio = [10, 2, 5, 10];
@@ -209,6 +228,30 @@ const getRecipientOptions = () => {
   }
 }
 
+const getCharByName = (characterName) => {
+  const list = findObjs({
+    _type: 'character',
+    name: characterName,
+  });
+  if (list.length === 0) {
+    sendChat(scname, `**ERROR:** No character exists by the name ${characterName}.  Did you forget to include the surname?`);
+    return null;
+  } else if (list.length > 1) {
+    sendChat(scname, `**ERROR:** character name ${characterName} must be unique.`);
+    return null;
+  }
+  return list[0];
+}
+
+const getNameInQuotes = (string) => {
+  const startQuote = string.indexOf('"');
+  const endQuote = string.lastIndexOf('"');
+  if (startQuote >= endQuote) {
+    sendChat(scname, '**ERROR:** You must specify a target by name within double quotes.');
+    return null;
+  }
+  return string.substring(startQuote + 1, endQuote);
+}
 
 on('ready', () => {
   const v = '%%version%%'; // version number
@@ -261,19 +304,27 @@ on('ready', () => {
   on('chat:message', (msg) => {
     if (msg.type !== 'api') return;
     if (msg.content.startsWith('!cm') !== true) return;
+
     log("CM Command: " + msg.content);
-    if (msg.content.includes('-help') || msg.content === '!cm' || msg.content.includes('-h')) {
+
+    // Initialize State object
+    initCM();
+
+    let argTokens = msg.content.split(/\s+/);
+
+    if (msg.content === '!cm' || argTokens.includes('-help') || argTokens.includes('-h')) {
       //! help
       sendChat(scname, `/w gm %%README%%`); // eslint-disable-line quotes
     }
 
-    if (msg.content.includes('-menu') || msg.content.includes('-tool')) {
+    if (argTokens.includes('-menu') || argTokens.includes('-toolbar') || argTokens.includes('-tool')) {
       let menuContent = `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<h3>Cash Master</h3><hr>` +
         '<h4>Universal Commands</h4>[Toolbar](!cm -tool)' +
           '<br>[Status](!cm -status)' +
           `<br>[Transfer to PC](!cm -transfer &#34;?{Recipient${getRecipientOptions()}}&#34; ?{Currency to Transfer})` +
-          '<br>[Transfer to NPC](!cm -giveNPC &#34;?{To whom and what for}&#34; ?{Currency to Transfer})' +
-          `<br>[Invoice Player](!cm -invoice &#34;?{Invoicee${getRecipientOptions()}}&#34; ?{Currency to Request})`;
+          '<br>[Transfer to NPC](!cm -giveNPC &#34;?{List recipient name and reason}&#34; ?{Currency to Transfer})' +
+          `<br>[Invoice Player](!cm -invoice &#34;?{Invoicee${getRecipientOptions()}}&#34; ?{Currency to Request})` +
+          '<br>[Set Default Character](!cm -sc ?{Will you set a new default character|Yes})';
       if(playerIsGM(msg.playerid)) {
         menuContent = menuContent +
         '<h4>GM-Only Commands</h4>'+
@@ -286,20 +337,28 @@ on('ready', () => {
           '<br>[Split Among Selected](!cm -loot ?{Amount to Split})'+
         '<br><b>Admin Commands</b>'+
           '<br>[Compress Coins of Selected](!cm -merge)'+
-          '<br>[Set Party to Selected](!cm -setParty)';
+          '<br>[Reallocate Coins](!cm -s ?{Will you REALLOCATE party funds evenly|Yes})'+
+          '<br>[Set Party to Selected](!cm -sp ?{Will you SET the party to selected|Yes})';
       }
       menuContent = menuContent + '}}';
       sendChat(scname, menuContent);
       return;
     }
 
+    // null here means it is not being used or it does not exist
+    let defaultCharacterName = null;
     if (msg.selected == null) {
-      sendChat(scname, '/w gm **ERROR:** You need to select at least one character.');
-      return;
+      defaultCharacterName = state.CashMaster.DefaultCharacterNames[msg.playerid];
+      log("Default: " + defaultCharacterName + " for " + msg.playerid);
+      if(!defaultCharacterName){
+        sendChat(scname, `/w ${msg.who} **ERROR:** You need to select at least one character.`);
+        sendChat(scname, `/w gm **ERROR:** ${msg.who} needs to select at least one character.`);
+        return;
+      }
     }
 
     // Coin Transfer between players
-    if (msg.content.includes('-transfer')) {
+    if (argTokens.includes('-transfer') || argTokens.includes('-t')) {
       ppg = /([0-9 -]+)pp/;
       ppa = ppg.exec(msg.content);
 
@@ -317,153 +376,149 @@ on('ready', () => {
 
       // Retrieve target name
       // Double quotes must be used because multiple players could have the same first name, last name, etc
-      const startQuote = msg.content.indexOf('"');
-      const endQuote = msg.content.lastIndexOf('"');
-      if (startQuote >= endQuote) {
-        sendChat(scname, '**ERROR:** You must specify a target by name within double quotes.');
+      const targetName = getNameInQuotes(msg.content);
+      if(targetName == null){
         return;
       }
-      const targetName = msg.content.substring(startQuote + 1, endQuote);
 
       // Retrieve target's id
-      const list = findObjs({
-        _type: 'character',
-        name: targetName,
-      });
-      if (list.length === 0) {
-        sendChat(scname, `**ERROR:** No character exists by the name ${targetName}.  Did you forget to include the surname?`);
-        return;
-      } else if (list.length > 1) {
-        sendChat(scname, `**ERROR:** character name ${targetName} must be unique.`);
+      let targetChar = getCharByName(targetName);
+      if(targetChar == null){
         return;
       }
-      const targetId = list[0].id;
-
+      let targetId = targetChar.id;
       output = '';
       let transactionOutput = '';
       let donorOutput = '';
       let targetOutput = '';
 
-      if (msg.selected.length > 1) {
-        sendChat(scname, '**ERROR:** Transfers can only have one sender.');
-        return;
-      }
       let donorName = '';
-      msg.selected.forEach((obj) => {
+      let donor;
+      if(defaultCharacterName == null){
+        if (msg.selected.length > 1) {
+          sendChat(scname, '**ERROR:** Transfers can only have one sender.');
+          return;
+        }
+        let obj = msg.selected[0];
         const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
-        let donor;
         if (token) {
           donor = getObj('character', token.get('represents'));
         }
-        if (donor) {
-          // Check that the sender is not attempting to send money to themselves
-          if (donor.id === targetId) {
-            sendChat(scname, '**ERROR:** target character must not be selected character.');
-            return;
-          }
-
-          // Verify donor has enough to perform transfer
-          // Check if the player attempted to steal from another and populate the transaction data
-          transactionOutput += '<br><b>Transaction Data</b>';
-          if (ppa !== null) {
-            const val = parseFloat(ppa[1]);
-            transactionOutput += `<br> ${ppa[0]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} may not demand payment from ${targetName}.`);
-              return;
-            }
-          }
-          if (gpa !== null) {
-            const val = parseFloat(gpa[1]);
-            transactionOutput += `<br> ${gpa[0]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} may not demand payment from ${targetName}.`);
-              return;
-            }
-          }
-          if (epa !== null) {
-            const val = parseFloat(epa[1]);
-            transactionOutput += `<br> ${epa[0]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} may not demand payment from ${targetName}.`);
-              return;
-            }
-          }
-          if (spa !== null) {
-            const val = parseFloat(spa[1]);
-            transactionOutput += `<br> ${spa[0]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} may not demand payment from ${targetName}.`);
-              return;
-            }
-          }
-          if (cpa !== null) {
-            const val = parseFloat(cpa[1]);
-            transactionOutput += `<br> ${cpa[0]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `/w gm **ERROR:** ${msg.who} may not demand payment from ${targetName}.`);
-              return;
-            }
-          }
-
-          // Load donor's existing account
-          donorName = getAttrByName(donor.id, 'character_name');
-          const dpp = parseFloat(getattr(donor.id, 'pp')) || 0;
-          const dgp = parseFloat(getattr(donor.id, 'gp')) || 0;
-          const dep = parseFloat(getattr(donor.id, 'ep')) || 0;
-          const dsp = parseFloat(getattr(donor.id, 'sp')) || 0;
-          const dcp = parseFloat(getattr(donor.id, 'cp')) || 0;
-          let donorAccount = [dpp, dgp, dep, dsp, dcp];
-
-          if (ppa !== null) donorAccount = changeMoney(donorAccount, ppa[0]);
-          if (gpa !== null) donorAccount = changeMoney(donorAccount, gpa[0]);
-          if (epa !== null) donorAccount = changeMoney(donorAccount, epa[0]);
-          if (spa !== null) donorAccount = changeMoney(donorAccount, spa[0]);
-          if (cpa !== null) donorAccount = changeMoney(donorAccount, cpa[0]);
-
-          // Verify donor has enough to perform transfer
-          donorOutput += `<br><b>${donorName}</b> has `;
-          if (donorAccount === 'ERROR: Not enough cash.') {
-            donorOutput += 'not enough cash!';
-          } else {
-            // Update donor account and update output
-            setattr(donor.id, 'pp', parseFloat(donorAccount[0]));
-            setattr(donor.id, 'gp', parseFloat(donorAccount[1]));
-            setattr(donor.id, 'ep', parseFloat(donorAccount[2]));
-            setattr(donor.id, 'sp', parseFloat(donorAccount[3]));
-            setattr(donor.id, 'cp', parseFloat(donorAccount[4]));
-            donorOutput += `<br> ${donorAccount[0]}pp`;
-            donorOutput += `<br> ${donorAccount[1]}gp`;
-            donorOutput += `<br> ${donorAccount[2]}ep`;
-            donorOutput += `<br> ${donorAccount[3]}sp`;
-            donorOutput += `<br> ${donorAccount[4]}cp`;
-
-            // targetFunds
-            let tpp = parseFloat(getattr(targetId, 'pp')) || 0;
-            let tgp = parseFloat(getattr(targetId, 'gp')) || 0;
-            let tep = parseFloat(getattr(targetId, 'ep')) || 0;
-            let tsp = parseFloat(getattr(targetId, 'sp')) || 0;
-            let tcp = parseFloat(getattr(targetId, 'cp')) || 0;
-            if (ppa !== null) tpp += parseFloat(ppa[1]);
-            if (gpa !== null) tgp += parseFloat(gpa[1]);
-            if (epa !== null) tep += parseFloat(epa[1]);
-            if (spa !== null) tsp += parseFloat(spa[1]);
-            if (cpa !== null) tcp += parseFloat(cpa[1]);
-
-            setattr(targetId, 'pp', tpp);
-            setattr(targetId, 'gp', tgp);
-            setattr(targetId, 'ep', tep);
-            setattr(targetId, 'sp', tsp);
-            setattr(targetId, 'cp', tcp);
-            targetOutput += `<br><b>${targetName}</b> has `;
-            targetOutput += `<br> ${tpp}pp`;
-            targetOutput += `<br> ${tgp}gp`;
-            targetOutput += `<br> ${tep}ep`;
-            targetOutput += `<br> ${tsp}sp`;
-            targetOutput += `<br> ${tcp}cp`;
-          }
+        if (!donor) {
+          sendChat(scname, '**ERROR:** sender does not exist.');
+          return;
         }
-      });
+      } else {
+        donorName = defaultCharacterName;
+        donor = getCharByName(defaultCharacterName);
+      }
+
+      // Check that the sender is not attempting to send money to themselves
+      if (donor.id === targetId) {
+        sendChat(scname, '**ERROR:** target character must not be selected character.');
+        return;
+      }
+
+      // Verify donor has enough to perform transfer
+      // Check if the player attempted to steal from another and populate the transaction data
+      transactionOutput += '<br><b>Transaction Data</b>';
+      if (ppa !== null) {
+        const val = parseFloat(ppa[1]);
+        transactionOutput += `<br> ${ppa[0]}`;
+        if (val < 0 && !playerIsGM(msg.playerid)) {
+          sendChat(scname, `**ERROR:** ${msg.who} may not demand payment from ${targetName}.`);
+          return;
+        }
+      }
+      if (gpa !== null) {
+        const val = parseFloat(gpa[1]);
+        transactionOutput += `<br> ${gpa[0]}`;
+        if (val < 0 && !playerIsGM(msg.playerid)) {
+          sendChat(scname, `**ERROR:** ${msg.who} may not demand payment from ${targetName}.`);
+          return;
+        }
+      }
+      if (epa !== null) {
+        const val = parseFloat(epa[1]);
+        transactionOutput += `<br> ${epa[0]}`;
+        if (val < 0 && !playerIsGM(msg.playerid)) {
+          sendChat(scname, `**ERROR:** ${msg.who} may not demand payment from ${targetName}.`);
+          return;
+        }
+      }
+      if (spa !== null) {
+        const val = parseFloat(spa[1]);
+        transactionOutput += `<br> ${spa[0]}`;
+        if (val < 0 && !playerIsGM(msg.playerid)) {
+          sendChat(scname, `**ERROR:** ${msg.who} may not demand payment from ${targetName}.`);
+          return;
+        }
+      }
+      if (cpa !== null) {
+        const val = parseFloat(cpa[1]);
+        transactionOutput += `<br> ${cpa[0]}`;
+        if (val < 0 && !playerIsGM(msg.playerid)) {
+          sendChat(scname, `/w gm **ERROR:** ${msg.who} may not demand payment from ${targetName}.`);
+          return;
+        }
+      }
+
+      // Load donor's existing account
+      donorName = getAttrByName(donor.id, 'character_name');
+      const dpp = parseFloat(getattr(donor.id, 'pp')) || 0;
+      const dgp = parseFloat(getattr(donor.id, 'gp')) || 0;
+      const dep = parseFloat(getattr(donor.id, 'ep')) || 0;
+      const dsp = parseFloat(getattr(donor.id, 'sp')) || 0;
+      const dcp = parseFloat(getattr(donor.id, 'cp')) || 0;
+      let donorAccount = [dpp, dgp, dep, dsp, dcp];
+
+      if (ppa !== null) donorAccount = changeMoney(donorAccount, ppa[0]);
+      if (gpa !== null) donorAccount = changeMoney(donorAccount, gpa[0]);
+      if (epa !== null) donorAccount = changeMoney(donorAccount, epa[0]);
+      if (spa !== null) donorAccount = changeMoney(donorAccount, spa[0]);
+      if (cpa !== null) donorAccount = changeMoney(donorAccount, cpa[0]);
+
+      // Verify donor has enough to perform transfer
+      donorOutput += `<br><b>${donorName}</b> has `;
+      if (donorAccount === 'ERROR: Not enough cash.') {
+        donorOutput += 'not enough cash!';
+      } else {
+        // Update donor account and update output
+        setattr(donor.id, 'pp', parseFloat(donorAccount[0]));
+        setattr(donor.id, 'gp', parseFloat(donorAccount[1]));
+        setattr(donor.id, 'ep', parseFloat(donorAccount[2]));
+        setattr(donor.id, 'sp', parseFloat(donorAccount[3]));
+        setattr(donor.id, 'cp', parseFloat(donorAccount[4]));
+        donorOutput += `<br> ${donorAccount[0]}pp`;
+        donorOutput += `<br> ${donorAccount[1]}gp`;
+        donorOutput += `<br> ${donorAccount[2]}ep`;
+        donorOutput += `<br> ${donorAccount[3]}sp`;
+        donorOutput += `<br> ${donorAccount[4]}cp`;
+
+        // targetFunds
+        let tpp = parseFloat(getattr(targetId, 'pp')) || 0;
+        let tgp = parseFloat(getattr(targetId, 'gp')) || 0;
+        let tep = parseFloat(getattr(targetId, 'ep')) || 0;
+        let tsp = parseFloat(getattr(targetId, 'sp')) || 0;
+        let tcp = parseFloat(getattr(targetId, 'cp')) || 0;
+        if (ppa !== null) tpp += parseFloat(ppa[1]);
+        if (gpa !== null) tgp += parseFloat(gpa[1]);
+        if (epa !== null) tep += parseFloat(epa[1]);
+        if (spa !== null) tsp += parseFloat(spa[1]);
+        if (cpa !== null) tcp += parseFloat(cpa[1]);
+
+        setattr(targetId, 'pp', tpp);
+        setattr(targetId, 'gp', tgp);
+        setattr(targetId, 'ep', tep);
+        setattr(targetId, 'sp', tsp);
+        setattr(targetId, 'cp', tcp);
+        targetOutput += `<br><b>${targetName}</b> has `;
+        targetOutput += `<br> ${tpp}pp`;
+        targetOutput += `<br> ${tgp}gp`;
+        targetOutput += `<br> ${tep}ep`;
+        targetOutput += `<br> ${tsp}sp`;
+        targetOutput += `<br> ${tcp}cp`;
+      }
       sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${donorName}>${targetName}</b><hr>${transactionOutput}${donorOutput}${targetOutput}}}`);
       sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${donorName} > ${targetName}</b><hr>${output}${transactionOutput}${donorOutput}}}`);
       sendChat(scname, `/w ${targetName} &{template:${rt[0]}} {{${rt[1]}=<b>Recipient Transfer Report</b><br>${donorName} > ${targetName}</b><hr>${output}${transactionOutput}${targetOutput}}}`);
@@ -471,7 +526,7 @@ on('ready', () => {
     }
 
     // Invoice between players
-    if (msg.content.includes('-invoice')) {
+    if (argTokens.includes('-invoice') || argTokens.includes('-i')) {
       ppg = /([0-9 -]+)pp/;
       ppa = ppg.exec(msg.content);
 
@@ -607,25 +662,32 @@ on('ready', () => {
     }
 
     // Display coin count to player
-    if (msg.content.includes('-status')) {
+    if (argTokens.includes('-status') || argTokens.includes('-ss')) {
       output = '';
-
-      msg.selected.forEach((obj) => {
-        const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
-        let character;
-        if (token) {
-          character = getObj('character', token.get('represents'));
-        }
+      if (defaultCharacterName == null) {
+        msg.selected.forEach((obj) => {
+          const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
+          let character;
+          if (token) {
+            character = getObj('character', token.get('represents'));
+          }
+          if (character) {
+            const coinStatus = playerCoinStatus(character);
+            sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Coin Purse Status</b></b><hr>${coinStatus[0]}}}`);
+          }
+        });
+      } else {
+        let character = getCharByName(defaultCharacterName);
         if (character) {
           const coinStatus = playerCoinStatus(character);
           sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Coin Purse Status</b></b><hr>${coinStatus[0]}}}`);
         }
-      });
+      }
       return;
     }
 
     // Drop Currency or Give it to an NPC
-    if (msg.content.includes('-dropWithReason') || msg.content.includes('-giveNPC')) {
+    if (argTokens.includes('-dropWithReason') || argTokens.includes('-giveNPC')) {
       ppg = /([0-9 -]+)pp/;
       ppa = ppg.exec(msg.content);
 
@@ -646,7 +708,7 @@ on('ready', () => {
       const startQuote = msg.content.indexOf('"');
       const endQuote = msg.content.lastIndexOf('"');
       if (startQuote >= endQuote) {
-        sendChat(scname, '**ERROR:** You must specify a target by name within double quotes.');
+        sendChat(scname, '**ERROR:** You must specify a reason for dropping within double quotes.');
         return;
       }
       const reason = msg.content.substring(startQuote + 1, endQuote);
@@ -752,6 +814,30 @@ on('ready', () => {
       return;
     }
 
+    // Set the default character for a given player
+    if(argTokens.includes('-setdefaultCharacterName') || argTokens.includes('-sc')) {
+      let setNewCharacter = false;
+      let pcToken = msg.selected[0];
+      const token = getObj('graphic', pcToken._id); // eslint-disable-line no-underscore-dangle
+      if (token) {
+        let pc = getObj('character', token.get('represents'));
+        if(pc) {
+          pcName = getAttrByName(pc.id, 'character_name');
+          if(pcName) {
+            let mapLog = `Mapping Speaker ${msg.playerid} to PC ${pcName}`;
+            log(mapLog);
+            state.CashMaster.DefaultCharacterNames[msg.playerid] = pcName;
+            sendChat(scname, `/w gm ${mapLog}`);
+            sendChat(scname, `/w ${msg.who} Updated Default Character to ${pcName}`);
+            setNewCharacter = true;
+          }
+        }
+      }
+      if(!setNewCharacter){
+        sendChat(scname, `/w ${msg.who} **ERROR:** You did not have a named character token selected.`);
+      }
+    }
+
     // GM-Only Commands
     if (playerIsGM(msg.playerid)) {
       // Calculate pre-existing party total
@@ -783,9 +869,10 @@ on('ready', () => {
         }
       });
       partytotal = Math.round(partytotal * 100, 0) / 100;
+      let partyGoldOperation = false;
 
       // Merge a player's coin into the densest possible
-      if (msg.content.includes('-merge')) {
+      if (argTokens.includes('-merge') || argTokens.includes('-m')) {
         output = '';
 
         msg.selected.forEach((obj) => {
@@ -833,24 +920,25 @@ on('ready', () => {
             output += `<br> ${mergeResult[4]}cp`;
           }
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Coin Merge Report</b></b><hr>${output}}}`);
+          partyGoldOperation = true;
         });
       }
 
       // Reallocate existing resources of party as if all coin purses were thrown together and split evenly
-      if (msg.content.includes('-share') || msg.content.includes('-best-share')) {
+      if (argTokens.includes('-share') || argTokens.includes('-best-share') || argTokens.includes('-s') || argTokens.includes('-bs')) {
         //! share and convert
         output = '';
         const cashshare = partytotal / partycounter;
         let newcounter = 0;
         let pps = Math.floor(cashshare / 10);
-        if (msg.content.includes('-share') || msg.content.includes('-s')) {
+        if (argTokens.includes('-share') || argTokens.includes('-s')) {
           pps = 0;
         }
         let rest = cashshare - (pps * 10);
         const gps = Math.floor(rest);
         rest = (rest - gps) * 2;
         let eps = Math.floor(rest);
-        if (msg.content.includes('-share') || msg.content.includes('-s')) {
+        if (argTokens.includes('-share') || argTokens.includes('-s')) {
           eps = 0;
         }
         rest = (rest - eps) * 5;
@@ -878,12 +966,13 @@ on('ready', () => {
               cps += Math.round(rest);
             }
             setattr(character.id, 'cp', cps);
+            partyGoldOperation = true;
           }
         });
       }
 
       // Add coin to target
-      if (msg.content.includes('-add')) {
+      if (argTokens.includes('-add') || argTokens.includes('-a')) {
         //! add
         ppg = /([0-9 -]+)pp/;
         ppa = ppg.exec(msg.content);
@@ -950,10 +1039,11 @@ on('ready', () => {
         });
         const s = msg.selected.length > 1 ? 's' : '';
         sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Disbursement to Player${s}</b><hr>${output}}}`);
+        partyGoldOperation = true;
       }
 
       // Subtract coin from target
-      if (msg.content.includes('-sub')) {
+      if (argTokens.includes('-pay') || argTokens.includes('-p') || argTokens.includes('-subtract') || argTokens.includes('-sub')) {
         //! pay
         ppg = /([0-9 -]+)pp/;
         ppa = ppg.exec(msg.content);
@@ -1013,10 +1103,11 @@ on('ready', () => {
         });
         const s = msg.selected.length > 1 ? 's' : '';
         sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Bill Collection from Player${s}</b><hr>${output}}}`);
+        partyGoldOperation = true;
       }
 
       // Evenly distribute sum of coin to group of players
-      if (msg.content.includes('-loot')) {
+      if (argTokens.includes('-loot') || argTokens.includes('-l')) {
         //! loot
         ppg = /([0-9 -]+)pp/;
         ppa = ppg.exec(msg.content);
@@ -1098,12 +1189,13 @@ on('ready', () => {
           }
         });
         sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Distributing Loot</b><hr>${output}}}`);
+        partyGoldOperation = true;
       }
 
       // Set Party to selected
-      if (msg.content.includes('-setParty')) {
+      if (argTokens.includes('-setParty') || argTokens.includes('-sp')) {
         let partyList = [];
-        if (!msg.content.includes('-clear')) {
+        if (!argTokens.includes('-clear')) {
           msg.selected.forEach((obj) => {
             const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
             let pc;
@@ -1120,20 +1212,17 @@ on('ready', () => {
         }
 
         log(`Party List: ${partyList}`);
-        if (!state.CashMaster) {
-          state.CashMaster = { Party: partyList}
-        } else {
-          state.CashMaster.Party = partyList;
-        }
+        state.CashMaster.Party = partyList;
         sendChat(scname, `/w gm **Party:${partyList.length}**<br>${partyList}`);
       }
 
       // Calculate party gold value
-      if (msg.content.includes('-add') || msg.content.includes('-sub') || msg.content.includes('-share') || msg.content.includes('-best-share') || msg.content.includes('-loot') || msg.content.includes('-overview')) {
+      if (partyGoldOperation || argTokens.includes('-overview') || argTokens.includes('-o')) {
+
         //! overview
         partytotal = 0;
         partycounter = 0;
-        if (!msg.content.includes('--usd')) usd2 = 0;
+        if (!argTokens.includes('--usd')) usd2 = 0;
         else usd2 = usd;
         output = `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Party’s cash overview</b><br><br>`;
         msg.selected.forEach((obj) => {
@@ -1152,9 +1241,6 @@ on('ready', () => {
         output += `<b><u>Party total: ${toUsd(partytotal, usd2)}</u></b>}}`;
         sendChat(scname, output);
       }
-    } else if (msg.content.includes('-add') || msg.content.includes('-sub') || msg.content.includes('-share') || msg.content.includes('-best-share') || msg.content.includes('-loot') || msg.content.includes('-merge') || msg.content.includes('-overview')) {
-      sendChat(scname, `/w ${msg.who} **ERROR:** You do not have permission to use that action.`);
-      sendChat(scname, `/w gm **WARNING:** ${msg.who} attempted to use a GM-Only command.`);
     }
   });
 });
