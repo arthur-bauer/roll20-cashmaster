@@ -1,4 +1,4 @@
-/* global on log playerIsGM findObjs getObj getAttrByName sendChat globalconfig */
+/* global on log playerIsGM findObjs getObj getAttrByName sendChat globalconfig state */
 
 /*
 CASHMASTER %%version%%
@@ -225,9 +225,11 @@ const getRecipientOptions = () => {
     }
     return '';
   }
+  return null;
 };
 
 const getCharByName = (characterName) => {
+  let scname;
   const list = findObjs({
     _type: 'character',
     name: characterName,
@@ -243,6 +245,7 @@ const getCharByName = (characterName) => {
 };
 
 const getStringInQuotes = (string) => {
+  let scname;
   const startQuote = string.indexOf('"');
   const endQuote = string.lastIndexOf('"');
   if (startQuote >= endQuote) {
@@ -299,6 +302,8 @@ on('ready', () => {
   let cpg;
   let name;
   let usd2;
+  let donor;
+  let pcName;
 
   on('chat:message', (msg) => {
     const argTokens = msg.content.split(/\s+/);
@@ -391,7 +396,6 @@ on('ready', () => {
       let targetOutput = '';
 
       let donorName = '';
-      let donor;
       if (defaultCharacterName == null) {
         if (msg.selected.length > 1) {
           sendChat(scname, '**ERROR:** Transfers can only have one sender.');
@@ -702,7 +706,7 @@ on('ready', () => {
       output = '';
       let transactionOutput = '';
       let donorOutput = '';
-      const targetOutput = '';
+      const targetOutput = ''; // eslint-disable-line no-unused-vars
       let donorName = '';
 
       if (defaultCharacterName == null) {
