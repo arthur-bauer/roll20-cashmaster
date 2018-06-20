@@ -311,8 +311,6 @@ on('ready', () => {
     // Initialize State object
     initCM();
 
-    let argTokens = msg.content.split(/\s+/);
-
     if (msg.content === '!cm' || argTokens.includes('-help') || argTokens.includes('-h')) {
       //! help
       sendChat(scname, `/w gm %%README%%`); // eslint-disable-line quotes
