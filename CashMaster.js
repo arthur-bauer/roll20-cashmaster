@@ -243,7 +243,7 @@ const getCharByName = (characterName) => {
   return list[0];
 }
 
-const getNameInQuotes = (string) => {
+const getStringInQuotes = (string) => {
   const startQuote = string.indexOf('"');
   const endQuote = string.lastIndexOf('"');
   if (startQuote >= endQuote) {
@@ -376,7 +376,7 @@ on('ready', () => {
 
       // Retrieve target name
       // Double quotes must be used because multiple players could have the same first name, last name, etc
-      const targetName = getNameInQuotes(msg.content);
+      const targetName = getStringInQuotes(msg.content);
       if(targetName == null){
         return;
       }
@@ -543,118 +543,113 @@ on('ready', () => {
       cpa = cpg.exec(msg.content);
 
       // Retrieve target name
-      // Double quotes must be used because multiple players could have the same first name, last name, etc
-      const startQuote = msg.content.indexOf('"');
-      const endQuote = msg.content.lastIndexOf('"');
-      if (startQuote >= endQuote) {
-        sendChat(scname, '**ERROR:** You must specify a target by name within double quotes.');
+      const targetName = getStringInQuotes(msg.content);
+      if(targetName == null){
         return;
       }
-      const targetName = msg.content.substring(startQuote + 1, endQuote);
 
       // Retrieve target's id
-      const list = findObjs({
-        _type: 'character',
-        name: targetName,
-      });
-      if (list.length === 0) {
-        sendChat(scname, `**ERROR:** No character exists by the name ${targetName}.  Did you forget to include the surname?`);
-        return;
-      } else if (list.length > 1) {
-        sendChat(scname, `**ERROR:** character name ${targetName} must be unique.`);
+      let targetChar = getCharByName(targetName);
+      if(targetChar == null){
         return;
       }
-      const targetId = list[0].id;
+      let targetId = targetChar.id;
 
       output = '';
       let transactionOutput = '';
       let targetOutput = '';
 
-      if (msg.selected.length > 1) {
-        sendChat(scname, '**ERROR:** Transfers can only have one sender.');
-        return;
-      }
+      let invoicer;
       let invoicerName = '';
       let invoiceAmount = '';
-
-      msg.selected.forEach((obj) => {
+      if(defaultCharacterName == null){
+        if (msg.selected.length > 1) {
+          sendChat(scname, '**ERROR:** Transfers can only have one sender.');
+          return;
+        }
+        let obj = msg.selected[0];
         const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
-        let invoicer;
         if (token) {
-          invoicer = getObj('character', token.get('represents'));
-        }
-        if (invoicer) {
-          // Check that the sender is not attempting to send money to themselves
-          if (invoicer.id === targetId) {
-            sendChat(scname, '**ERROR:** target character must not be selected character.');
-            return;
-          }
-
-          // Verify invoicer has enough to perform transfer
-          // Check if the player attempted to steal from another and populate the transaction data
-          transactionOutput += '<br><b>Requested Funds:</b>';
-          if (ppa !== null) {
-            const val = parseFloat(ppa[1]);
-            transactionOutput += `<br> ${ppa[0]}`;
-            invoiceAmount += ` ${ppa[0]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} may not reverse-invoice themselves.`);
-              return;
-            }
-          }
-          if (gpa !== null) {
-            const val = parseFloat(gpa[1]);
-            transactionOutput += `<br> ${gpa[0]}`;
-            invoiceAmount += ` ${gpa[0]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} may not reverse-invoice themselves.`);
-              return;
-            }
-          }
-          if (epa !== null) {
-            const val = parseFloat(epa[1]);
-            transactionOutput += `<br> ${epa[0]}`;
-            invoiceAmount += ` ${epa[0]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} may not reverse-invoice themselves.`);
-              return;
-            }
-          }
-          if (spa !== null) {
-            const val = parseFloat(spa[1]);
-            transactionOutput += `<br> ${spa[0]}`;
-            invoiceAmount += ` ${spa[0]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} may not reverse-invoice themselves.`);
-              return;
-            }
-          }
-          if (cpa !== null) {
-            const val = parseFloat(cpa[1]);
-            transactionOutput += `<br> ${cpa[0]}`;
-            invoiceAmount += ` ${cpa[0]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `/w gm **ERROR:** ${msg.who} may not reverse-invoice themselves.`);
-              return;
-            }
-          }
+          donor = getObj('character', token.get('represents'));
           invoicerName = getAttrByName(invoicer.id, 'character_name');
-
-          // Load target's existing account
-          let tpp = parseFloat(getattr(targetId, 'pp')) || 0;
-          let tgp = parseFloat(getattr(targetId, 'gp')) || 0;
-          let tep = parseFloat(getattr(targetId, 'ep')) || 0;
-          let tsp = parseFloat(getattr(targetId, 'sp')) || 0;
-          let tcp = parseFloat(getattr(targetId, 'cp')) || 0;
-
-          targetOutput += `<hr><b>Current Funds of ${targetName}</b>`;
-          targetOutput += `<br> ${tpp}pp`;
-          targetOutput += `<br> ${tgp}gp`;
-          targetOutput += `<br> ${tep}ep`;
-          targetOutput += `<br> ${tsp}sp`;
-          targetOutput += `<br> ${tcp}cp`;
         }
-      });
+        if (!donor) {
+          sendChat(scname, '**ERROR:** sender does not exist.');
+          return;
+        }
+      } else {
+        invoicerName = defaultCharacterName;
+        invoicer = getCharByName(defaultCharacterName);
+      }
+
+      // Check that the sender is not attempting to send money to themselves
+      if (invoicer.id === targetId) {
+        sendChat(scname, '**ERROR:** target character must not be selected character.');
+        return;
+      }
+
+      // Verify invoicer has enough to perform transfer
+      // Check if the player attempted to steal from another and populate the transaction data
+      transactionOutput += '<br><b>Requested Funds:</b>';
+      if (ppa !== null) {
+        const val = parseFloat(ppa[1]);
+        transactionOutput += `<br> ${ppa[0]}`;
+        invoiceAmount += ` ${ppa[0]}`;
+        if (val < 0 && !playerIsGM(msg.playerid)) {
+          sendChat(scname, `**ERROR:** ${msg.who} may not reverse-invoice themselves.`);
+          return;
+        }
+      }
+      if (gpa !== null) {
+        const val = parseFloat(gpa[1]);
+        transactionOutput += `<br> ${gpa[0]}`;
+        invoiceAmount += ` ${gpa[0]}`;
+        if (val < 0 && !playerIsGM(msg.playerid)) {
+          sendChat(scname, `**ERROR:** ${msg.who} may not reverse-invoice themselves.`);
+          return;
+        }
+      }
+      if (epa !== null) {
+        const val = parseFloat(epa[1]);
+        transactionOutput += `<br> ${epa[0]}`;
+        invoiceAmount += ` ${epa[0]}`;
+        if (val < 0 && !playerIsGM(msg.playerid)) {
+          sendChat(scname, `**ERROR:** ${msg.who} may not reverse-invoice themselves.`);
+          return;
+        }
+      }
+      if (spa !== null) {
+        const val = parseFloat(spa[1]);
+        transactionOutput += `<br> ${spa[0]}`;
+        invoiceAmount += ` ${spa[0]}`;
+        if (val < 0 && !playerIsGM(msg.playerid)) {
+          sendChat(scname, `**ERROR:** ${msg.who} may not reverse-invoice themselves.`);
+          return;
+        }
+      }
+      if (cpa !== null) {
+        const val = parseFloat(cpa[1]);
+        transactionOutput += `<br> ${cpa[0]}`;
+        invoiceAmount += ` ${cpa[0]}`;
+        if (val < 0 && !playerIsGM(msg.playerid)) {
+          sendChat(scname, `/w gm **ERROR:** ${msg.who} may not reverse-invoice themselves.`);
+          return;
+        }
+      }
+
+      // Load target's existing account
+      let tpp = parseFloat(getattr(targetId, 'pp')) || 0;
+      let tgp = parseFloat(getattr(targetId, 'gp')) || 0;
+      let tep = parseFloat(getattr(targetId, 'ep')) || 0;
+      let tsp = parseFloat(getattr(targetId, 'sp')) || 0;
+      let tcp = parseFloat(getattr(targetId, 'cp')) || 0;
+
+      targetOutput += `<hr><b>Current Funds of ${targetName}</b>`;
+      targetOutput += `<br> ${tpp}pp`;
+      targetOutput += `<br> ${tgp}gp`;
+      targetOutput += `<br> ${tep}ep`;
+      targetOutput += `<br> ${tsp}sp`;
+      targetOutput += `<br> ${tcp}cp`;
       sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Invoice Report</b><br>${invoicerName}>${targetName}</b><hr>${transactionOutput}${targetOutput}}}`);
       sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Invoice Sent to ${targetName}</b><hr>${transactionOutput}}}`);
       sendChat(scname, `/w ${targetName} &{template:${rt[0]}} {{${rt[1]}=<b>Invoice Received from ${invoicerName}</b><hr>${transactionOutput}${targetOutput}<hr>[Pay](!cm -transfer &#34;${invoicerName}&#34;${invoiceAmount})}}`);
@@ -704,111 +699,110 @@ on('ready', () => {
       cpa = cpg.exec(msg.content);
 
       // Retrieve target name
-      // Double quotes must be used because multiple players could have the same first name, last name, etc
-      const startQuote = msg.content.indexOf('"');
-      const endQuote = msg.content.lastIndexOf('"');
-      if (startQuote >= endQuote) {
-        sendChat(scname, '**ERROR:** You must specify a reason for dropping within double quotes.');
-        return;
-      }
-      const reason = msg.content.substring(startQuote + 1, endQuote);
+      const reason = getStringInQuotes(msg.content);
 
       output = '';
       let transactionOutput = '';
       let donorOutput = '';
       let targetOutput = '';
-
-      if (msg.selected.length > 1) {
-        sendChat(scname, '**ERROR:** Transfers can only have on sender.');
-        return;
-      }
       let donorName = '';
-      msg.selected.forEach((obj) => {
+
+      if(defaultCharacterName == null){
+        if (msg.selected.length > 1) {
+          sendChat(scname, '**ERROR:** Transfers can only have one sender.');
+          return;
+        }
+        let obj = msg.selected[0];
         const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
-        let donor;
         if (token) {
           donor = getObj('character', token.get('represents'));
         }
-        if (donor) {
-
-          // Verify donor has enough to perform transfer
-          // Check if the player attempted to steal from another and populate the transaction data
-          transactionOutput += '<br><b>Transaction Data</b>';
-          if (ppa !== null) {
-            const val = parseFloat(ppa[1]);
-            transactionOutput += `<br> ${ppa[0]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
-              return;
-            }
-          }
-          if (gpa !== null) {
-            const val = parseFloat(gpa[1]);
-            transactionOutput += `<br> ${gpa[0]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
-              return;
-            }
-          }
-          if (epa !== null) {
-            const val = parseFloat(epa[1]);
-            transactionOutput += `<br> ${epa[0]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
-              return;
-            }
-          }
-          if (spa !== null) {
-            const val = parseFloat(spa[1]);
-            transactionOutput += `<br> ${spa[0]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
-              return;
-            }
-          }
-          if (cpa !== null) {
-            const val = parseFloat(cpa[1]);
-            transactionOutput += `<br> ${cpa[0]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
-              return;
-            }
-          }
-
-          // Load donor's existing account
-          donorName = getAttrByName(donor.id, 'character_name');
-          const dpp = parseFloat(getattr(donor.id, 'pp')) || 0;
-          const dgp = parseFloat(getattr(donor.id, 'gp')) || 0;
-          const dep = parseFloat(getattr(donor.id, 'ep')) || 0;
-          const dsp = parseFloat(getattr(donor.id, 'sp')) || 0;
-          const dcp = parseFloat(getattr(donor.id, 'cp')) || 0;
-          let donorAccount = [dpp, dgp, dep, dsp, dcp];
-
-          if (ppa !== null) donorAccount = changeMoney(donorAccount, ppa[0]);
-          if (gpa !== null) donorAccount = changeMoney(donorAccount, gpa[0]);
-          if (epa !== null) donorAccount = changeMoney(donorAccount, epa[0]);
-          if (spa !== null) donorAccount = changeMoney(donorAccount, spa[0]);
-          if (cpa !== null) donorAccount = changeMoney(donorAccount, cpa[0]);
-
-          // Verify donor has enough to perform transfer
-          donorOutput += `<br><b>${donorName}</b> has `;
-          if (donorAccount === 'ERROR: Not enough cash.') {
-            donorOutput += 'not enough cash!';
-          } else {
-            // Update donor account and update output
-            setattr(donor.id, 'pp', parseFloat(donorAccount[0]));
-            setattr(donor.id, 'gp', parseFloat(donorAccount[1]));
-            setattr(donor.id, 'ep', parseFloat(donorAccount[2]));
-            setattr(donor.id, 'sp', parseFloat(donorAccount[3]));
-            setattr(donor.id, 'cp', parseFloat(donorAccount[4]));
-            donorOutput += `<br> ${donorAccount[0]}pp`;
-            donorOutput += `<br> ${donorAccount[1]}gp`;
-            donorOutput += `<br> ${donorAccount[2]}ep`;
-            donorOutput += `<br> ${donorAccount[3]}sp`;
-            donorOutput += `<br> ${donorAccount[4]}cp`;
-          }
+        if (!donor) {
+          sendChat(scname, '**ERROR:** sender does not exist.');
+          return;
         }
-      });
+      } else {
+        donorName = defaultCharacterName;
+        donor = getCharByName(defaultCharacterName);
+      }
+
+      // Verify donor has enough to perform transfer
+      // Check if the player attempted to steal from another and populate the transaction data
+      transactionOutput += '<br><b>Transaction Data</b>';
+      if (ppa !== null) {
+        const val = parseFloat(ppa[1]);
+        transactionOutput += `<br> ${ppa[0]}`;
+        if (val < 0 && !playerIsGM(msg.playerid)) {
+          sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+          return;
+        }
+      }
+      if (gpa !== null) {
+        const val = parseFloat(gpa[1]);
+        transactionOutput += `<br> ${gpa[0]}`;
+        if (val < 0 && !playerIsGM(msg.playerid)) {
+          sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+          return;
+        }
+      }
+      if (epa !== null) {
+        const val = parseFloat(epa[1]);
+        transactionOutput += `<br> ${epa[0]}`;
+        if (val < 0 && !playerIsGM(msg.playerid)) {
+          sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+          return;
+        }
+      }
+      if (spa !== null) {
+        const val = parseFloat(spa[1]);
+        transactionOutput += `<br> ${spa[0]}`;
+        if (val < 0 && !playerIsGM(msg.playerid)) {
+          sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+          return;
+        }
+      }
+      if (cpa !== null) {
+        const val = parseFloat(cpa[1]);
+        transactionOutput += `<br> ${cpa[0]}`;
+        if (val < 0 && !playerIsGM(msg.playerid)) {
+          sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+          return;
+        }
+      }
+
+      // Load donor's existing account
+      donorName = getAttrByName(donor.id, 'character_name');
+      const dpp = parseFloat(getattr(donor.id, 'pp')) || 0;
+      const dgp = parseFloat(getattr(donor.id, 'gp')) || 0;
+      const dep = parseFloat(getattr(donor.id, 'ep')) || 0;
+      const dsp = parseFloat(getattr(donor.id, 'sp')) || 0;
+      const dcp = parseFloat(getattr(donor.id, 'cp')) || 0;
+      let donorAccount = [dpp, dgp, dep, dsp, dcp];
+
+      if (ppa !== null) donorAccount = changeMoney(donorAccount, ppa[0]);
+      if (gpa !== null) donorAccount = changeMoney(donorAccount, gpa[0]);
+      if (epa !== null) donorAccount = changeMoney(donorAccount, epa[0]);
+      if (spa !== null) donorAccount = changeMoney(donorAccount, spa[0]);
+      if (cpa !== null) donorAccount = changeMoney(donorAccount, cpa[0]);
+
+      // Verify donor has enough to perform transfer
+      donorOutput += `<br><b>${donorName}</b> has `;
+      if (donorAccount === 'ERROR: Not enough cash.') {
+        donorOutput += 'not enough cash!';
+      } else {
+        // Update donor account and update output
+        setattr(donor.id, 'pp', parseFloat(donorAccount[0]));
+        setattr(donor.id, 'gp', parseFloat(donorAccount[1]));
+        setattr(donor.id, 'ep', parseFloat(donorAccount[2]));
+        setattr(donor.id, 'sp', parseFloat(donorAccount[3]));
+        setattr(donor.id, 'cp', parseFloat(donorAccount[4]));
+        donorOutput += `<br> ${donorAccount[0]}pp`;
+        donorOutput += `<br> ${donorAccount[1]}gp`;
+        donorOutput += `<br> ${donorAccount[2]}ep`;
+        donorOutput += `<br> ${donorAccount[3]}sp`;
+        donorOutput += `<br> ${donorAccount[4]}cp`;
+      }
+
       sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${donorName}</b><hr>${reason}<hr>${transactionOutput}${donorOutput}}}`);
       sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${donorName}</b><hr>${reason}<hr>${output}${transactionOutput}${donorOutput}}}`);
       return;
