@@ -1058,6 +1058,13 @@ on('ready', () => {
                 (parseFloat(getattr(character.id, 'sp')) || 0),
                 (parseFloat(getattr(character.id, 'cp')) || 0),
               ];
+              const playerInitial = [
+                playerAccount[0],
+                playerAccount[1],
+                playerAccount[2],
+                playerAccount[3],
+                playerAccount[4],
+              ];
 
               const mergeResult = mergeMoney(playerAccount);
               if (mergeResult.length == null) {
@@ -1071,7 +1078,7 @@ on('ready', () => {
                 return;
               }
 
-              // Udate donor account and update output
+              // Update donor account and update output
               setattr(character.id, 'pp', parseFloat(mergeResult[0]));
               setattr(character.id, 'gp', parseFloat(mergeResult[1]));
               setattr(character.id, 'ep', parseFloat(mergeResult[2]));
@@ -1084,6 +1091,8 @@ on('ready', () => {
               output += `<br> ${mergeResult[2]}ep`;
               output += `<br> ${mergeResult[3]}sp`;
               output += `<br> ${mergeResult[4]}cp`;
+
+              recordTransaction("Merge", msg.who, [getPlayerEffect(characterName, getDelta(mergeResult, playerInitial))]);
             }
             sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Coin Merge Report</b></b><hr>${output}}}`);
             partyGoldOperation = true;
