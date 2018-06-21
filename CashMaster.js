@@ -16,6 +16,7 @@ const initCM = () => {
     state.CashMaster = {
       Party: [],
       DefaultCharacterNames: {},
+      TransactionHistory: [],
     };
   }
   if (!state.CashMaster.Party) {
@@ -26,6 +27,61 @@ const initCM = () => {
     log('Initializing CashMaster.DefaultCharacterNames');
     state.CashMaster.DefaultCharacterNames = {};
   }
+  if (!state.CashMaster.TransactionHistory) {
+    log('Initializing CashMaster.TransactionHistory');
+    state.CashMaster.TransactionHistory = [];
+  }
+};
+
+const transactionHistoryLength = 20;
+
+const recordTransaction = (type, initiator, playerEffects) => {
+  let timestamp = new Date().toUTCString();
+
+  log("Add Transaction");
+  log(`  Type: ${type}`);
+  log(`  Initiator: ${initiator}`);
+  log(`  Player Effects: ${playerEffects}`);
+  log(`  Timestamp: ${timestamp}`);
+
+  state.CashMaster.TransactionHistory.push({
+    Type: type,
+    Initiator: initiator,
+    PlayerEffects: playerEffects,
+    Time: timestamp,
+  });
+
+  // Only track a finite number of transactions so we don't clog up state
+  if (state.CashMaster.TransactionHistory.length > transactionHistoryLength) {
+    state.CashMaster.TransactionHistory.shift();
+  }
+};
+
+const getDelta = (finalState, initialState) => {
+  return [
+    finalState[0] - initialState[0],
+    finalState[1] - initialState[1],
+    finalState[2] - initialState[2],
+    finalState[3] - initialState[3],
+    finalState[4] - initialState[4],
+  ];
+};
+
+const getPlayerEffect = (playerName, delta) => {
+  return {
+    PlayerName: playerName,
+    Delta: delta,
+  };
+};
+
+const getInverseOperation = (delta) => {
+  return [
+    -diff[0],
+    -diff[1],
+    -diff[2],
+    -diff[3],
+    -diff[4],
+  ];
 };
 
 // How much each coing is worth of those below it.
@@ -305,6 +361,23 @@ on('ready', () => {
   let donor;
   let pcName;
 
+  const populateCoinContents = (input) => {
+    ppg = /([0-9 -]+)pp/;
+    ppa = ppg.exec(input);
+
+    gpg = /([0-9 -]+)gp/;
+    gpa = gpg.exec(input);
+
+    epg = /([0-9 -]+)ep/;
+    epa = epg.exec(input);
+
+    spg = /([0-9 -]+)sp/;
+    spa = spg.exec(input);
+
+    cpg = /([0-9 -]+)cp/;
+    cpa = cpg.exec(input);
+  };
+
   on('chat:message', (msg) => {
     const argTokens = msg.content.split(/\s+/);
     if (msg.type !== 'api') return;
@@ -338,6 +411,7 @@ on('ready', () => {
           '<br>[Credit Each Selected](!cm -add ?{Currency to Add})' +
           '<br>[Bill Each Selected](!cm -sub ?{Currency to Bill})' +
           '<br>[Split Among Selected](!cm -loot ?{Amount to Split})' +
+          '<br>[Transaction History](!cm -th)' +
         '<br><b>Admin Commands</b>' +
           '<br>[Compress Coins of Selected](!cm -merge)' +
           '<br>[Reallocate Coins](!cm -s ?{Will you REALLOCATE party funds evenly|Yes})' +
@@ -362,20 +436,7 @@ on('ready', () => {
 
     // Coin Transfer between players
     if (argTokens.includes('-transfer') || argTokens.includes('-t')) {
-      ppg = /([0-9 -]+)pp/;
-      ppa = ppg.exec(msg.content);
-
-      gpg = /([0-9 -]+)gp/;
-      gpa = gpg.exec(msg.content);
-
-      epg = /([0-9 -]+)ep/;
-      epa = epg.exec(msg.content);
-
-      spg = /([0-9 -]+)sp/;
-      spa = spg.exec(msg.content);
-
-      cpg = /([0-9 -]+)cp/;
-      cpa = cpg.exec(msg.content);
+      populateCoinContents(msg.content);
 
       // Retrieve target name
       // Double quotes must be used because multiple players could have the same first name, last name, etc
@@ -473,6 +534,7 @@ on('ready', () => {
       const dsp = parseFloat(getattr(donor.id, 'sp')) || 0;
       const dcp = parseFloat(getattr(donor.id, 'cp')) || 0;
       let donorAccount = [dpp, dgp, dep, dsp, dcp];
+      let donorInitial = [dpp, dgp, dep, dsp, dcp];
 
       if (ppa !== null) donorAccount = changeMoney(donorAccount, ppa[0]);
       if (gpa !== null) donorAccount = changeMoney(donorAccount, gpa[0]);
@@ -485,6 +547,8 @@ on('ready', () => {
       if (donorAccount === 'ERROR: Not enough cash.') {
         donorOutput += 'not enough cash!';
       } else {
+        let donorEffect = getPlayerEffect(donorName, getDelta(donorAccount, donorInitial));
+
         // Update donor account and update output
         setattr(donor.id, 'pp', parseFloat(donorAccount[0]));
         setattr(donor.id, 'gp', parseFloat(donorAccount[1]));
@@ -503,11 +567,14 @@ on('ready', () => {
         let tep = parseFloat(getattr(targetId, 'ep')) || 0;
         let tsp = parseFloat(getattr(targetId, 'sp')) || 0;
         let tcp = parseFloat(getattr(targetId, 'cp')) || 0;
+        let targetInitial = [tpp, tgp, tep, tsp, tcp];
         if (ppa !== null) tpp += parseFloat(ppa[1]);
         if (gpa !== null) tgp += parseFloat(gpa[1]);
         if (epa !== null) tep += parseFloat(epa[1]);
         if (spa !== null) tsp += parseFloat(spa[1]);
         if (cpa !== null) tcp += parseFloat(cpa[1]);
+        let targetFinal = [tpp, tgp, tep, tsp, tcp];
+        let targetEffect = getPlayerEffect(targetName, getDelta(targetFinal, targetInitial));
 
         setattr(targetId, 'pp', tpp);
         setattr(targetId, 'gp', tgp);
@@ -520,6 +587,8 @@ on('ready', () => {
         targetOutput += `<br> ${tep}ep`;
         targetOutput += `<br> ${tsp}sp`;
         targetOutput += `<br> ${tcp}cp`;
+
+        recordTransaction("Transfer", donorName, [donorEffect, targetEffect]);
       }
       sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${donorName}>${targetName}</b><hr>${transactionOutput}${donorOutput}${targetOutput}}}`);
       sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${donorName} > ${targetName}</b><hr>${output}${transactionOutput}${donorOutput}}}`);
@@ -1186,6 +1255,21 @@ on('ready', () => {
         });
         sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Distributing Loot</b><hr>${output}}}`);
         partyGoldOperation = true;
+      }
+
+      if (argTokens.includes('-transactionHistory') || argTokens.includes('-th')) {
+        let historyContent = `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<h3>Cash Master</h3><hr>`;
+        state.CashMaster.TransactionHistory.forEach((obj) => {
+          let playerEffects = '<ul>';
+          obj.PlayerEffects.forEach((effect) => {
+            playerEffects = `${playerEffects}<li>${effect.PlayerName}:${effect.Delta}</li>`;
+          });
+          playerEffects = `${playerEffects}</ul>`;
+          historyContent = `${historyContent}<br><h4>${obj.Type}</h4><br>${obj.Time}<br>Initiated by ${obj.Initiator}<br><b>Player Effects</b>${playerEffects}`;
+        });
+        historyContent += '}}';
+        sendChat(scname, historyContent);
+        return;
       }
 
       // Set Party to selected
