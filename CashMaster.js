@@ -572,10 +572,10 @@ on('ready', () => {
         const obj = msg.selected[0];
         const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
         if (token) {
-          donor = getObj('character', token.get('represents'));
+          invoicer = getObj('character', token.get('represents'));
           invoicerName = getAttrByName(invoicer.id, 'character_name');
         }
-        if (!donor) {
+        if (!invoicer) {
           sendChat(scname, '**ERROR:** sender does not exist.');
           return;
         }
