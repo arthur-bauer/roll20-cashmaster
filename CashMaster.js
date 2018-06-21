@@ -35,7 +35,7 @@ const initCM = () => {
   if (!state.CashMaster.MaxTransactionId) {
     state.CashMaster.MaxTransactionId = 0;
     state.CashMaster.TransactionHistory.forEach((tx) => {
-      tx.Id = state.CashMaster.MaxTransactionId++;
+      tx.Id = state.CashMaster.MaxTransactionId + 1; // eslint-disable-line no-param-reassign
     });
   }
 };
@@ -43,10 +43,10 @@ const initCM = () => {
 const transactionHistoryLength = 20;
 
 const recordTransaction = (type, initiator, playerEffects) => {
-  let id = state.CashMaster.MaxTransactionId++;
-  let timestamp = new Date().toUTCString();
+  const id = state.CashMaster.MaxTransactionId + 1;
+  const timestamp = new Date().toUTCString();
 
-  log("Add Transaction");
+  log('Add Transaction');
   log(`  Id: ${id}`);
   log(`  Type: ${type}`);
   log(`  Initiator: ${initiator}`);
@@ -68,32 +68,26 @@ const recordTransaction = (type, initiator, playerEffects) => {
   }
 };
 
-const getDelta = (finalState, initialState) => {
-  return [
-    finalState[0] - initialState[0],
-    finalState[1] - initialState[1],
-    finalState[2] - initialState[2],
-    finalState[3] - initialState[3],
-    finalState[4] - initialState[4],
-  ];
-};
+const getDelta = (finalState, initialState) => [
+  finalState[0] - initialState[0],
+  finalState[1] - initialState[1],
+  finalState[2] - initialState[2],
+  finalState[3] - initialState[3],
+  finalState[4] - initialState[4],
+];
 
-const getPlayerEffect = (playerName, delta) => {
-  return {
-    PlayerName: playerName,
-    Delta: delta,
-  };
-};
+const getPlayerEffect = (playerName, delta) => ({
+  PlayerName: playerName,
+  Delta: delta,
+});
 
-const getInverseOperation = (delta) => {
-  return [
-    -delta[0],
-    -delta[1],
-    -delta[2],
-    -delta[3],
-    -delta[4],
-  ];
-};
+const getInverseOperation = delta => [
+  -delta[0],
+  -delta[1],
+  -delta[2],
+  -delta[3],
+  -delta[4],
+];
 
 // How much each coing is worth of those below it.
 // In order: pp, gp, ep, sp
@@ -253,6 +247,16 @@ const toUsd = (total, usd = 110) => {
   return output;
 };
 
+const formatCurrency = (pp, gp, ep, sp, cp) => {
+  const currencyStringArray = [];
+  if (pp && pp !== 0) currencyStringArray.push(`<em style='color:blue;'>${pp}pp</em>`);
+  if (gp && gp !== 0) currencyStringArray.push(`<em style='color:orange;'>${gp}gp</em>`);
+  if (ep && ep !== 0) currencyStringArray.push(`<em style='color:silver;'>${ep}ep</em>`);
+  if (sp && sp !== 0) currencyStringArray.push(`<em style='color:grey;'>${sp}sp</em>`);
+  if (cp && cp !== 0) currencyStringArray.push(`<em style='color:brown;'>${cp}cp</em>`);
+  return currencyStringArray.join(', ');
+};
+
 const playerCoinStatus = (character, usd = 110) => {
   //! playerCoinStatus
 
@@ -278,23 +282,13 @@ const playerCoinStatus = (character, usd = 110) => {
   return [output, total];
 };
 
-const formatCurrency = (pp, gp, ep, sp, cp) => {
-  let currencyStringArray = [];
-  if (pp && pp != 0) currencyStringArray.push(`<em style='color:blue;'>${pp}pp</em>`);
-  if (gp && gp != 0) currencyStringArray.push(`<em style='color:orange;'>${gp}gp</em>`);
-  if (ep && ep != 0) currencyStringArray.push(`<em style='color:silver;'>${ep}ep</em>`);
-  if (sp && sp != 0) currencyStringArray.push(`<em style='color:grey;'>${sp}sp</em>`);
-  if (cp && cp != 0) currencyStringArray.push(`<em style='color:brown;'>${cp}cp</em>`);
-  return currencyStringArray.join(', ');
-};
-
 const getNonZeroCurrency = (accountArray) => {
-  let currencyStringArray = [];
-  if (accountArray[0] && accountArray[0] != 0) currencyStringArray.push(`${accountArray[0]}pp`);
-  if (accountArray[1] && accountArray[1] != 0) currencyStringArray.push(`${accountArray[1]}gp`);
-  if (accountArray[2] && accountArray[2] != 0) currencyStringArray.push(`${accountArray[2]}ep`);
-  if (accountArray[3] && accountArray[3] != 0) currencyStringArray.push(`${accountArray[3]}sp`);
-  if (accountArray[4] && accountArray[4] != 0) currencyStringArray.push(`${accountArray[4]}cp`);
+  const currencyStringArray = [];
+  if (accountArray[0] && accountArray[0] !== 0) currencyStringArray.push(`${accountArray[0]}pp`);
+  if (accountArray[1] && accountArray[1] !== 0) currencyStringArray.push(`${accountArray[1]}gp`);
+  if (accountArray[2] && accountArray[2] !== 0) currencyStringArray.push(`${accountArray[2]}ep`);
+  if (accountArray[3] && accountArray[3] !== 0) currencyStringArray.push(`${accountArray[3]}sp`);
+  if (accountArray[4] && accountArray[4] !== 0) currencyStringArray.push(`${accountArray[4]}cp`);
   return currencyStringArray.join(' ');
 };
 
@@ -409,36 +403,36 @@ on('ready', () => {
     let historyContent = `/w ${sender} &{template:${rt[0]}} {{${rt[1]}=<h3>Cash Master</h3><hr>`;
     state.CashMaster.TransactionHistory.forEach((transaction) => {
       let playerEffects = '<ul>';
-      let operationList = [];
+      const operationList = [];
       transaction.PlayerEffects.forEach((effect) => {
-        let formattedCurrency = formatCurrency(
+        const formattedCurrency = formatCurrency(
           effect.Delta[0],
           effect.Delta[1],
           effect.Delta[2],
           effect.Delta[3],
-          effect.Delta[4]
+          effect.Delta[4] // eslint-disable-line comma-dangle
         );
-        if(transaction.Reverted) {
+        if (transaction.Reverted) {
           playerEffects += `<li><strike>${effect.PlayerName}:${formattedCurrency}</strike></li>`;
         } else {
           playerEffects += `<li>${effect.PlayerName}:${formattedCurrency}</li>`;
         }
         operationList.push(`-add -noToken &#34;${effect.PlayerName}&#34; ${getNonZeroCurrency(getInverseOperation(effect.Delta))}`);
       });
-      playerEffects += `</ul>`;
+      playerEffects += '</ul>';
 
       historyContent += `<br><h4>${transaction.Type}</h4><br>${transaction.Time}<br>Initiated by ${transaction.Initiator}<br><b>Player Effects</b>${playerEffects}<br>`;
 
       // If it hasn't been reverted yet, display revert button.  Otherwise, strikethrough.
-      if(!transaction.Reverted) {
+      if (!transaction.Reverted) {
         operationList.push(`-revert ${transaction.Id}`);
-        let revertOperation = `!cm ${operationList.join(';')}`;
+        const revertOperation = `!cm ${operationList.join(';')}`;
         historyContent += `[Revert Transaction](${revertOperation})<br>`;
       }
     });
     historyContent += '}}';
     sendChat(scname, historyContent);
-  }
+  };
 
   on('chat:message', (msg) => {
     const subcommands = msg.content.split(';');
@@ -493,18 +487,16 @@ on('ready', () => {
       // Selectionless GM commands
       if (playerIsGM(msg.playerid)) {
         if (argTokens.includes('-transactionHistory') || argTokens.includes('-th')) {
-          let sender = msg.who;
+          const sender = msg.who;
           printTransactionHistory(sender);
           return;
         }
 
         if (argTokens.includes('-revert') || argTokens.includes('-r')) {
-          let id = parseFloat(argTokens [1]);
-          let tx = state.CashMaster.TransactionHistory.find(function(element) {
-            return element.Id == id;
-          });
+          const id = parseFloat(argTokens[1]);
+          const tx = state.CashMaster.TransactionHistory.find(element => element.Id === id);
           tx.Reverted = true;
-          let sender = msg.who;
+          const sender = msg.who;
           printTransactionHistory(sender);
           return;
         }
@@ -515,7 +507,7 @@ on('ready', () => {
 
       // If the command has specified that no tokens are to be allowed (such as reversion), deselect all.
       if (msg.selected != null && (argTokens.includes('-noToken') || argTokens.includes('-nt'))) {
-        msg.selected = null;
+        msg.selected = null; // eslint-disable-line no-param-reassign
       }
 
       // Hereafter, operations all require a selection, so set a default name if one exists
@@ -523,9 +515,8 @@ on('ready', () => {
         // For single-user operations, if double quotes exist in the subcommand, we can interpret that as a textual declaration of sender
         if (playerIsGM(msg.playerid) && (argTokens.includes('-add') || argTokens.includes('-a'))) {
           defaultCharacterName = getStringInQuotes(subcommand);
-        }
+        } else {
         // Attempt to load a default character from the sender
-        else {
           defaultCharacterName = state.CashMaster.DefaultCharacterNames[msg.playerid];
         }
 
@@ -639,7 +630,7 @@ on('ready', () => {
         const dsp = parseFloat(getattr(donor.id, 'sp')) || 0;
         const dcp = parseFloat(getattr(donor.id, 'cp')) || 0;
         let donorAccount = [dpp, dgp, dep, dsp, dcp];
-        let donorInitial = [dpp, dgp, dep, dsp, dcp];
+        const donorInitial = [dpp, dgp, dep, dsp, dcp];
 
         if (ppa !== null) donorAccount = changeMoney(donorAccount, ppa[0]);
         if (gpa !== null) donorAccount = changeMoney(donorAccount, gpa[0]);
@@ -652,7 +643,7 @@ on('ready', () => {
         if (donorAccount === 'ERROR: Not enough cash.') {
           donorOutput += 'not enough cash!';
         } else {
-          let donorEffect = getPlayerEffect(donorName, getDelta(donorAccount, donorInitial));
+          const donorEffect = getPlayerEffect(donorName, getDelta(donorAccount, donorInitial));
 
           // Update donor account and update output
           setattr(donor.id, 'pp', parseFloat(donorAccount[0]));
@@ -672,14 +663,14 @@ on('ready', () => {
           let tep = parseFloat(getattr(targetId, 'ep')) || 0;
           let tsp = parseFloat(getattr(targetId, 'sp')) || 0;
           let tcp = parseFloat(getattr(targetId, 'cp')) || 0;
-          let targetInitial = [tpp, tgp, tep, tsp, tcp];
+          const targetInitial = [tpp, tgp, tep, tsp, tcp];
           if (ppa !== null) tpp += parseFloat(ppa[1]);
           if (gpa !== null) tgp += parseFloat(gpa[1]);
           if (epa !== null) tep += parseFloat(epa[1]);
           if (spa !== null) tsp += parseFloat(spa[1]);
           if (cpa !== null) tcp += parseFloat(cpa[1]);
-          let targetFinal = [tpp, tgp, tep, tsp, tcp];
-          let targetEffect = getPlayerEffect(targetName, getDelta(targetFinal, targetInitial));
+          const targetFinal = [tpp, tgp, tep, tsp, tcp];
+          const targetEffect = getPlayerEffect(targetName, getDelta(targetFinal, targetInitial));
 
           setattr(targetId, 'pp', tpp);
           setattr(targetId, 'gp', tgp);
@@ -693,7 +684,7 @@ on('ready', () => {
           targetOutput += `<br> ${tsp}sp`;
           targetOutput += `<br> ${tcp}cp`;
 
-          recordTransaction("Transfer to PC", msg.who, [donorEffect, targetEffect]);
+          recordTransaction('Transfer to PC', msg.who, [donorEffect, targetEffect]);
         }
         sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${donorName}>${targetName}</b><hr>${transactionOutput}${donorOutput}${targetOutput}}}`);
         sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${donorName} > ${targetName}</b><hr>${output}${transactionOutput}${donorOutput}}}`);
@@ -939,7 +930,7 @@ on('ready', () => {
         const dep = parseFloat(getattr(donor.id, 'ep')) || 0;
         const dsp = parseFloat(getattr(donor.id, 'sp')) || 0;
         const dcp = parseFloat(getattr(donor.id, 'cp')) || 0;
-        let donorInitial = [dpp, dgp, dep, dsp, dcp];
+        const donorInitial = [dpp, dgp, dep, dsp, dcp];
         let donorAccount = [dpp, dgp, dep, dsp, dcp];
 
         if (ppa !== null) donorAccount = changeMoney(donorAccount, ppa[0]);
@@ -953,7 +944,7 @@ on('ready', () => {
         if (donorAccount === 'ERROR: Not enough cash.') {
           donorOutput += 'not enough cash!';
         } else {
-          let donorEffect = getPlayerEffect(donorName, getDelta(donorAccount, donorInitial));
+          const donorEffect = getPlayerEffect(donorName, getDelta(donorAccount, donorInitial));
 
           // Update donor account and update output
           setattr(donor.id, 'pp', parseFloat(donorAccount[0]));
@@ -967,7 +958,7 @@ on('ready', () => {
           donorOutput += `<br> ${donorAccount[3]}sp`;
           donorOutput += `<br> ${donorAccount[4]}cp`;
 
-          recordTransaction("Transfer to NPC", msg.who, [donorEffect]);
+          recordTransaction('Transfer to NPC', msg.who, [donorEffect]);
         }
 
         sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${donorName}</b><hr>${reason}<hr>${transactionOutput}${donorOutput}}}`);
@@ -1007,7 +998,7 @@ on('ready', () => {
         let partymember = null;
         let partyGoldOperation = false;
 
-        if(msg.selected) {
+        if (msg.selected) {
           partymember = Object.entries(msg.selected).length;
           msg.selected.forEach((obj) => {
             const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
@@ -1039,7 +1030,7 @@ on('ready', () => {
         // Merge a player's coin into the densest possible
         if (argTokens.includes('-merge') || argTokens.includes('-m')) {
           output = '';
-          let transactionEffects = [];
+          const transactionEffects = [];
           msg.selected.forEach((obj) => {
             const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
             let character;
@@ -1093,7 +1084,7 @@ on('ready', () => {
 
               transactionEffects.push(getPlayerEffect(characterName, getDelta(mergeResult, playerInitial)));
             }
-            recordTransaction("Merge", msg.who, transactionEffects);
+            recordTransaction('Merge', msg.who, transactionEffects);
             sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Coin Merge Report</b></b><hr>${output}}}`);
             partyGoldOperation = true;
           });
@@ -1123,7 +1114,7 @@ on('ready', () => {
 
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Let’s share this!</b><hr>Everyone receives the equivalent of ${toUsd(cashshare)} gp: ${pps} platinum, ${gps} gold, ${eps} electrum, ${sps} silver, and ${cps} copper.}}`);
 
-          let transactionEffects = [];
+          const transactionEffects = [];
           msg.selected.forEach((obj) => {
             const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
             let character;
@@ -1138,7 +1129,7 @@ on('ready', () => {
               const iep = parseFloat(getattr(character.id, 'ep')) || 0;
               const isp = parseFloat(getattr(character.id, 'sp')) || 0;
               const icp = parseFloat(getattr(character.id, 'cp')) || 0;
-              let playerInitial = [ipp, igp, iep, isp, icp];
+              const playerInitial = [ipp, igp, iep, isp, icp];
 
               setattr(character.id, 'pp', pps);
               setattr(character.id, 'gp', gps);
@@ -1153,7 +1144,7 @@ on('ready', () => {
               partyGoldOperation = true;
             }
           });
-          recordTransaction("Reallocate Currency", msg.who, transactionEffects);
+          recordTransaction('Reallocate Currency', msg.who, transactionEffects);
         }
 
         // Add coin to target
@@ -1162,8 +1153,8 @@ on('ready', () => {
 
           output = '';
 
-          let targetList = [];
-          if(msg.selected) {
+          const targetList = [];
+          if (msg.selected) {
             msg.selected.forEach((obj) => {
               const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
               let character;
@@ -1190,10 +1181,10 @@ on('ready', () => {
           }
 
           // Perform operations on each target
-          let transactionEffects = [];
+          const transactionEffects = [];
           targetList.forEach((target) => {
-            let character = target.Character;
-            let name = target.CharacterName;
+            const character = target.Character;
+            name = target.CharacterName;
 
             pp = parseFloat(getattr(character.id, 'pp')) || 0;
             gp = parseFloat(getattr(character.id, 'gp')) || 0;
@@ -1201,7 +1192,7 @@ on('ready', () => {
             sp = parseFloat(getattr(character.id, 'sp')) || 0;
             cp = parseFloat(getattr(character.id, 'cp')) || 0;
             const targetInitial = [pp, gp, ep, sp, cp];
-            let targetFinal = [pp, gp, ep, sp, cp];
+            const targetFinal = [pp, gp, ep, sp, cp];
 
             total = Math.round((
               (pp * 10) +
@@ -1253,7 +1244,7 @@ on('ready', () => {
           populateCoinContents(subcommand);
 
           output = '';
-          let transactionEffects = [];
+          const transactionEffects = [];
           msg.selected.forEach((obj) => {
             const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
             let character;
@@ -1295,7 +1286,7 @@ on('ready', () => {
             }
             sendChat(scname, `/w ${name} &{template:${rt[0]}} {{${rt[1]}=<b>GM has Removed Coin</b><hr>${output}}}`);
           });
-          recordTransaction("Subtract", msg.who, transactionEffects);
+          recordTransaction('Subtract', msg.who, transactionEffects);
           const s = msg.selected.length > 1 ? 's' : '';
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Bill Collection from Player${s}</b><hr>${output}}}`);
           partyGoldOperation = true;
@@ -1307,7 +1298,7 @@ on('ready', () => {
 
           output = '';
           partycounter = 0;
-          let transactionEffects = [];
+          const transactionEffects = [];
           msg.selected.forEach((obj) => {
             const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
             let character;
@@ -1323,7 +1314,7 @@ on('ready', () => {
               sp = parseFloat(getattr(character.id, 'sp')) || 0;
               cp = parseFloat(getattr(character.id, 'cp')) || 0;
               const targetInitial = [pp, gp, ep, sp, cp];
-              let targetFinal = [pp, gp, ep, sp, cp];
+              const targetFinal = [pp, gp, ep, sp, cp];
 
               let ppt;
               let gpt;
@@ -1377,7 +1368,7 @@ on('ready', () => {
               transactionEffects.push(getPlayerEffect(name, getDelta(targetFinal, targetInitial)));
             }
           });
-          recordTransaction("Distribute Loot", msg.who, transactionEffects);
+          recordTransaction('Distribute Loot', msg.who, transactionEffects);
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Distributing Loot</b><hr>${output}}}`);
           partyGoldOperation = true;
         }
