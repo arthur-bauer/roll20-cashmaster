@@ -60,8 +60,13 @@ Use caution when using the below commands.
 - `!cm -share` or `!cm -s` to **reallocate and share** the money equally between selected party members, converting the amount into the best combination of gold, silver and copper (this should be used in smaller stores),
 - `!cm -best-share` or `!cm -bs` to **reallocate and share** the money equally between selected party members, converting the amount into the best combination of platinum, gold, electrum, silver and copper (this should only be used in larger stores that have a fair amount of cash),
 - `!cm -setParty` or `!cm -sp` to set the default party list.  These will be the default targets for party actions if you have nothing selected.
+- `!cm -revert` or `!cm -r` reverts a given transaction id.  This is an internal command used to revert transactions.
 
-**Note:** You can use several coin values at once, e.g. `!cm -loot 50gp 150sp 2000cp` or `!cm -pay 2sp 5cp`.
+## Tips
+
+1. `-noToken` and `-nt` will cause CashMaster to disregard what character is selected.
+2. You can use several coin values at once, e.g. `!cm -loot 50gp 150sp 2000cp` or `!cm -pay 2sp 5cp`.
+3. You can combine multiple subcommands into a single chat command with a semicolon `;` between them.  For example, `!cm -add 5gp; -merge`
 
 ## Examples
 
