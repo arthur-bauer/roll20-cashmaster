@@ -1040,7 +1040,7 @@ on('ready', () => {
         // Merge a player's coin into the densest possible
         if (argTokens.includes('-merge') || argTokens.includes('-m')) {
           output = '';
-
+          let transactionEffects = [];
           msg.selected.forEach((obj) => {
             const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
             let character;
@@ -1092,8 +1092,9 @@ on('ready', () => {
               output += `<br> ${mergeResult[3]}sp`;
               output += `<br> ${mergeResult[4]}cp`;
 
-              recordTransaction("Merge", msg.who, [getPlayerEffect(characterName, getDelta(mergeResult, playerInitial))]);
+              transactionEffects.push(getPlayerEffect(characterName, getDelta(mergeResult, playerInitial)));
             }
+            recordTransaction("Merge", msg.who, transactionEffects);
             sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Coin Merge Report</b></b><hr>${output}}}`);
             partyGoldOperation = true;
           });
@@ -1101,7 +1102,6 @@ on('ready', () => {
 
         // Reallocate existing resources of party as if all coin purses were thrown together and split evenly
         if (argTokens.includes('-share') || argTokens.includes('-best-share') || argTokens.includes('-s') || argTokens.includes('-bs')) {
-          //! share and convert
           output = '';
           const cashshare = partytotal / partycounter;
           let newcounter = 0;
@@ -1124,6 +1124,7 @@ on('ready', () => {
 
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Let’s share this!</b><hr>Everyone receives the equivalent of ${toUsd(cashshare)} gp: ${pps} platinum, ${gps} gold, ${eps} electrum, ${sps} silver, and ${cps} copper.}}`);
 
+          let transactionEffects = [];
           msg.selected.forEach((obj) => {
             const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
             let character;
@@ -1132,6 +1133,14 @@ on('ready', () => {
               character = getObj('character', token.get('represents'));
             }
             if (character) {
+              const characterName = getAttrByName(character.id, 'character_name');
+              const ipp = parseFloat(getattr(character.id, 'pp')) || 0;
+              const igp = parseFloat(getattr(character.id, 'gp')) || 0;
+              const iep = parseFloat(getattr(character.id, 'ep')) || 0;
+              const isp = parseFloat(getattr(character.id, 'sp')) || 0;
+              const icp = parseFloat(getattr(character.id, 'cp')) || 0;
+              let playerInitial = [ipp, igp, iep, isp, icp];
+
               setattr(character.id, 'pp', pps);
               setattr(character.id, 'gp', gps);
               setattr(character.id, 'ep', eps);
@@ -1141,9 +1150,11 @@ on('ready', () => {
                 cps += Math.round(rest);
               }
               setattr(character.id, 'cp', cps);
+              transactionEffects.push(getPlayerEffect(characterName, getDelta([pps, gps, eps, sps, cps], playerInitial)));
               partyGoldOperation = true;
             }
           });
+          recordTransaction("Reallocate Currency", msg.who, transactionEffects);
         }
 
         // Add coin to target
@@ -1180,6 +1191,7 @@ on('ready', () => {
           }
 
           // Perform operations on each target
+          let transactionEffects = [];
           targetList.forEach((target) => {
             let character = target.Character;
             let name = target.CharacterName;
@@ -1189,6 +1201,9 @@ on('ready', () => {
             ep = parseFloat(getattr(character.id, 'ep')) || 0;
             sp = parseFloat(getattr(character.id, 'sp')) || 0;
             cp = parseFloat(getattr(character.id, 'cp')) || 0;
+            const targetInitial = [pp, gp, ep, sp, cp];
+            let targetFinal = [pp, gp, ep, sp, cp];
+
             total = Math.round((
               (pp * 10) +
               (ep * 0.5) +
@@ -1197,54 +1212,49 @@ on('ready', () => {
               (cp / 100)
             ) * 10000) / 10000;
             partytotal = total + partytotal;
+
             output += `<br><b>${name}</b>`;
             if (ppa) {
               setattr(character.id, 'pp', parseFloat(pp) + parseFloat(ppa[1]));
               output += `<br> ${ppa[0]}`;
+              targetFinal[0] += parseFloat(ppa[1]);
             }
             if (gpa) {
               setattr(character.id, 'gp', parseFloat(gp) + parseFloat(gpa[1]));
               output += `<br> ${gpa[0]}`;
+              targetFinal[1] += parseFloat(gpa[1]);
             }
             if (epa) {
               setattr(character.id, 'ep', parseFloat(ep) + parseFloat(epa[1]));
               output += `<br> ${epa[0]}`;
+              targetFinal[2] += parseFloat(epa[1]);
             }
             if (spa) {
               setattr(character.id, 'sp', parseFloat(sp) + parseFloat(spa[1]));
               output += `<br> ${spa[0]}`;
+              targetFinal[3] += parseFloat(spa[1]);
             }
             if (cpa) {
               setattr(character.id, 'cp', parseFloat(cp) + parseFloat(cpa[1]));
               output += `<br> ${cpa[0]}`;
+              targetFinal[4] += parseFloat(cpa[1]);
             }
+            transactionEffects.push(getPlayerEffect(name, getDelta(targetFinal, targetInitial)));
             sendChat(scname, `/w ${name} &{template:${rt[0]}} {{${rt[1]}=<b>GM has Disbursed Coin</b><hr>${output}}}`);
           });
 
+          const type = msg.content.includes('-revert ') ? 'Revert Transaction' : 'Add';
+          recordTransaction(type, msg.who, transactionEffects);
           const s = targetList.length > 1 ? 's' : '';
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Disbursement to Player${s}</b><hr>${output}}}`);
         }
 
         // Subtract coin from target
         if (argTokens.includes('-pay') || argTokens.includes('-p') || argTokens.includes('-subtract') || argTokens.includes('-sub')) {
-          //! pay
-          ppg = /([0-9 -]+)pp/;
-          ppa = ppg.exec(subcommand);
-
-          gpg = /([0-9 -]+)gp/;
-          gpa = gpg.exec(subcommand);
-
-          epg = /([0-9 -]+)ep/;
-          epa = epg.exec(subcommand);
-
-          spg = /([0-9 -]+)sp/;
-          spa = spg.exec(subcommand);
-
-          cpg = /([0-9 -]+)cp/;
-          cpa = cpg.exec(subcommand);
+          populateCoinContents(subcommand);
 
           output = '';
-
+          let transactionEffects = [];
           msg.selected.forEach((obj) => {
             const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
             let character;
@@ -1259,31 +1269,34 @@ on('ready', () => {
               ep = parseFloat(getattr(character.id, 'ep')) || 0;
               sp = parseFloat(getattr(character.id, 'sp')) || 0;
               cp = parseFloat(getattr(character.id, 'cp')) || 0;
-
-              let startamount = [pp, gp, ep, sp, cp];
-              if (ppa !== null) startamount = changeMoney(startamount, ppa[0]);
-              if (gpa !== null) startamount = changeMoney(startamount, gpa[0]);
-              if (epa !== null) startamount = changeMoney(startamount, epa[0]);
-              if (spa !== null) startamount = changeMoney(startamount, spa[0]);
-              if (cpa !== null) startamount = changeMoney(startamount, cpa[0]);
+              const targetInitial = [pp, gp, ep, sp, cp];
+              let targetFinal = [pp, gp, ep, sp, cp];
+              if (ppa !== null) targetFinal = changeMoney(targetFinal, ppa[0]);
+              if (gpa !== null) targetFinal = changeMoney(targetFinal, gpa[0]);
+              if (epa !== null) targetFinal = changeMoney(targetFinal, epa[0]);
+              if (spa !== null) targetFinal = changeMoney(targetFinal, spa[0]);
+              if (cpa !== null) targetFinal = changeMoney(targetFinal, cpa[0]);
 
               output += `<br><b>${name}</b> has `;
-              if (startamount === 'ERROR: Not enough cash.') output += 'not enough cash!';
+              if (targetFinal === 'ERROR: Not enough cash.') output += 'not enough cash!';
               else {
-                setattr(character.id, 'pp', parseFloat(startamount[0]));
-                output += `<br> ${startamount[0]}pp`;
-                setattr(character.id, 'gp', parseFloat(startamount[1]));
-                output += `<br> ${startamount[1]}gp`;
-                setattr(character.id, 'ep', parseFloat(startamount[2]));
-                output += `<br> ${startamount[2]}ep`;
-                setattr(character.id, 'sp', parseFloat(startamount[3]));
-                output += `<br> ${startamount[3]}sp`;
-                setattr(character.id, 'cp', parseFloat(startamount[4]));
-                output += `<br> ${startamount[4]}cp`;
+                setattr(character.id, 'pp', parseFloat(targetFinal[0]));
+                output += `<br> ${targetFinal[0]}pp`;
+                setattr(character.id, 'gp', parseFloat(targetFinal[1]));
+                output += `<br> ${targetFinal[1]}gp`;
+                setattr(character.id, 'ep', parseFloat(targetFinal[2]));
+                output += `<br> ${targetFinal[2]}ep`;
+                setattr(character.id, 'sp', parseFloat(targetFinal[3]));
+                output += `<br> ${targetFinal[3]}sp`;
+                setattr(character.id, 'cp', parseFloat(targetFinal[4]));
+                output += `<br> ${targetFinal[4]}cp`;
+
+                transactionEffects.push(getPlayerEffect(name, getDelta(targetFinal, targetInitial)));
               }
             }
             sendChat(scname, `/w ${name} &{template:${rt[0]}} {{${rt[1]}=<b>GM has Removed Coin</b><hr>${output}}}`);
           });
+          recordTransaction("Subtract", msg.who, transactionEffects);
           const s = msg.selected.length > 1 ? 's' : '';
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Bill Collection from Player${s}</b><hr>${output}}}`);
           partyGoldOperation = true;
@@ -1291,25 +1304,11 @@ on('ready', () => {
 
         // Evenly distribute sum of coin to group of players
         if (argTokens.includes('-loot') || argTokens.includes('-l')) {
-          //! loot
-          ppg = /([0-9 -]+)pp/;
-          ppa = ppg.exec(subcommand);
-
-          gpg = /([0-9 -]+)gp/;
-          gpa = gpg.exec(subcommand);
-
-          epg = /([0-9 -]+)ep/;
-          epa = epg.exec(subcommand);
-
-          spg = /([0-9 -]+)sp/;
-          spa = spg.exec(subcommand);
-
-          cpg = /([0-9 -]+)cp/;
-          cpa = cpg.exec(subcommand);
+          populateCoinContents(subcommand);
 
           output = '';
           partycounter = 0;
-
+          let transactionEffects = [];
           msg.selected.forEach((obj) => {
             const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
             let character;
@@ -1324,6 +1323,8 @@ on('ready', () => {
               ep = parseFloat(getattr(character.id, 'ep')) || 0;
               sp = parseFloat(getattr(character.id, 'sp')) || 0;
               cp = parseFloat(getattr(character.id, 'cp')) || 0;
+              const targetInitial = [pp, gp, ep, sp, cp];
+              let targetFinal = [pp, gp, ep, sp, cp];
 
               let ppt;
               let gpt;
@@ -1349,28 +1350,35 @@ on('ready', () => {
 
               output += `<br><b>${name}</b>`;
               if (ppa) {
-                setattr(character.id, 'pp', parseFloat(pp) + parseFloat(ppt));
+                targetFinal[0] = parseFloat(pp) + parseFloat(ppt);
+                setattr(character.id, 'pp', targetFinal[0]);
                 output += `<br> ${ppt}pp`;
               }
               if (gpa) {
-                setattr(character.id, 'gp', parseFloat(gp) + parseFloat(gpt));
+                targetFinal[1] = parseFloat(gp) + parseFloat(gpt);
+                setattr(character.id, 'gp', targetFinal[1]);
                 output += `<br> ${gpt}gp`;
               }
               if (epa) {
-                setattr(character.id, 'ep', parseFloat(ep) + parseFloat(ept));
+                targetFinal[2] = parseFloat(ep) + parseFloat(ept);
+                setattr(character.id, 'ep', targetFinal[2]);
                 output += `<br> ${ept}ep`;
               }
               if (spa) {
-                setattr(character.id, 'sp', parseFloat(sp) + parseFloat(spt));
+                targetFinal[3] = parseFloat(sp) + parseFloat(spt);
+                setattr(character.id, 'sp', targetFinal[3]);
                 output += `<br> ${spt}sp`;
               }
               if (cpa) {
-                setattr(character.id, 'cp', parseFloat(cp) + parseFloat(cpt));
+                targetFinal[4] = parseFloat(cp) + parseFloat(cpt);
+                setattr(character.id, 'cp', targetFinal[4]);
                 output += `<br> ${cpt}cp`;
               }
               sendChat(scname, `/w ${name} &{template:${rt[0]}} {{${rt[1]}=<b>Distributing Loot</b><hr>${output}}}`);
+              transactionEffects.push(getPlayerEffect(name, getDelta(targetFinal, targetInitial)));
             }
           });
+          recordTransaction("Distribute Loot", msg.who, transactionEffects);
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Distributing Loot</b><hr>${output}}}`);
           partyGoldOperation = true;
         }
