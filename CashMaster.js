@@ -35,7 +35,7 @@ const initCM = () => {
   if (!state.CashMaster.MaxTransactionId) {
     state.CashMaster.MaxTransactionId = 0;
     state.CashMaster.TransactionHistory.forEach((tx) => {
-      tx.Id = state.CashMaster.MaxTransactionId + 1; // eslint-disable-line no-param-reassign
+      tx.Id = state.CashMaster.MaxTransactionId++; // eslint-disable-line no-param-reassign, no-plusplus
     });
   }
 };
@@ -43,7 +43,7 @@ const initCM = () => {
 const transactionHistoryLength = 20;
 
 const recordTransaction = (type, initiator, playerEffects) => {
-  const id = state.CashMaster.MaxTransactionId + 1;
+  const id = state.CashMaster.MaxTransactionId++; // eslint-disable-line no-param-reassign, no-plusplus
   const timestamp = new Date().toUTCString();
 
   log('Add Transaction');
