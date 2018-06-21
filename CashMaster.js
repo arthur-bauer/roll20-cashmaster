@@ -1,4 +1,4 @@
-/* global on log playerIsGM findObjs getObj getAttrByName sendChat globalconfig */
+/* global on log playerIsGM findObjs getObj getAttrByName sendChat globalconfig state */
 
 /*
 CASHMASTER %%version%%
@@ -11,22 +11,22 @@ arthurbauer@me.com
 
 const initCM = () => {
   // Initialize State object
-  if(!state.CashMaster){
-    log("Initializing CashMaster");
+  if (!state.CashMaster) {
+    log('Initializing CashMaster');
     state.CashMaster = {
       Party: [],
-      DefaultCharacterNames: {}
+      DefaultCharacterNames: {},
     };
   }
-  if(!state.CashMaster.Party){
-    log("Initializing CashMaster.Party");
+  if (!state.CashMaster.Party) {
+    log('Initializing CashMaster.Party');
     state.CashMaster.Party = [];
   }
-  if(!state.CashMaster.DefaultCharacterNames){
-    log("Initializing CashMaster.DefaultCharacterNames");
+  if (!state.CashMaster.DefaultCharacterNames) {
+    log('Initializing CashMaster.DefaultCharacterNames');
     state.CashMaster.DefaultCharacterNames = {};
   }
-}
+};
 
 // How much each coing is worth of those below it.
 // In order: pp, gp, ep, sp
@@ -217,18 +217,19 @@ const playerCoinStatus = (character, usd = 110) => {
 
 const getRecipientOptions = () => {
   if (state.CashMaster) {
-    let existingOptions = state.CashMaster.Party.join("|");
+    const existingOptions = state.CashMaster.Party.join('|');
 
     // If ones already exist, append "|Other, ?{Type Full Name}"
     if (existingOptions.length > 0) {
       return `|${existingOptions}|Other,?{Type Full Name&amp;#125;`;
-    } else {
-      return '';
     }
+    return '';
   }
-}
+  return null;
+};
 
 const getCharByName = (characterName) => {
+  let scname;
   const list = findObjs({
     _type: 'character',
     name: characterName,
@@ -241,9 +242,10 @@ const getCharByName = (characterName) => {
     return null;
   }
   return list[0];
-}
+};
 
 const getStringInQuotes = (string) => {
+  let scname;
   const startQuote = string.indexOf('"');
   const endQuote = string.lastIndexOf('"');
   if (startQuote >= endQuote) {
@@ -251,7 +253,7 @@ const getStringInQuotes = (string) => {
     return null;
   }
   return string.substring(startQuote + 1, endQuote);
-}
+};
 
 on('ready', () => {
   const v = '%%version%%'; // version number
@@ -300,17 +302,18 @@ on('ready', () => {
   let cpg;
   let name;
   let usd2;
+  let donor;
+  let pcName;
 
   on('chat:message', (msg) => {
+    const argTokens = msg.content.split(/\s+/);
     if (msg.type !== 'api') return;
     if (msg.content.startsWith('!cm') !== true) return;
 
-    log("CM Command: " + msg.content);
+    log(`CM Command: ${msg.content}`);
 
     // Initialize State object
     initCM();
-
-    let argTokens = msg.content.split(/\s+/);
 
     if (msg.content === '!cm' || argTokens.includes('-help') || argTokens.includes('-h')) {
       //! help
@@ -325,22 +328,22 @@ on('ready', () => {
           '<br>[Transfer to NPC](!cm -giveNPC &#34;?{List recipient name and reason}&#34; ?{Currency to Transfer})' +
           `<br>[Invoice Player](!cm -invoice &#34;?{Invoicee${getRecipientOptions()}}&#34; ?{Currency to Request})` +
           '<br>[Set Default Character](!cm -sc ?{Will you set a new default character|Yes})';
-      if(playerIsGM(msg.playerid)) {
-        menuContent = menuContent +
-        '<h4>GM-Only Commands</h4>'+
-        '<b>Base Commands</b>'+
-          '<br>[Readme](!cm -help)<br>[Party Overview](!cm -overview)'+
-          '<br>[Selected USD](!cm -overview --usd)'+
-        '<br><b>Accounting Commands</b>'+
-          '<br>[Credit Each Selected](!cm -add ?{Currency to Add})'+
-          '<br>[Bill Each Selected](!cm -sub ?{Currency to Bill})'+
-          '<br>[Split Among Selected](!cm -loot ?{Amount to Split})'+
-        '<br><b>Admin Commands</b>'+
-          '<br>[Compress Coins of Selected](!cm -merge)'+
-          '<br>[Reallocate Coins](!cm -s ?{Will you REALLOCATE party funds evenly|Yes})'+
+      if (playerIsGM(msg.playerid)) {
+        menuContent = `${menuContent
+        }<h4>GM-Only Commands</h4>` +
+        '<b>Base Commands</b>' +
+          '<br>[Readme](!cm -help)<br>[Party Overview](!cm -overview)' +
+          '<br>[Selected USD](!cm -overview --usd)' +
+        '<br><b>Accounting Commands</b>' +
+          '<br>[Credit Each Selected](!cm -add ?{Currency to Add})' +
+          '<br>[Bill Each Selected](!cm -sub ?{Currency to Bill})' +
+          '<br>[Split Among Selected](!cm -loot ?{Amount to Split})' +
+        '<br><b>Admin Commands</b>' +
+          '<br>[Compress Coins of Selected](!cm -merge)' +
+          '<br>[Reallocate Coins](!cm -s ?{Will you REALLOCATE party funds evenly|Yes})' +
           '<br>[Set Party to Selected](!cm -sp ?{Will you SET the party to selected|Yes})';
       }
-      menuContent = menuContent + '}}';
+      menuContent += '}}';
       sendChat(scname, menuContent);
       return;
     }
@@ -349,8 +352,8 @@ on('ready', () => {
     let defaultCharacterName = null;
     if (msg.selected == null) {
       defaultCharacterName = state.CashMaster.DefaultCharacterNames[msg.playerid];
-      log("Default: " + defaultCharacterName + " for " + msg.playerid);
-      if(!defaultCharacterName){
+      log(`Default: ${defaultCharacterName} for ${msg.playerid}`);
+      if (!defaultCharacterName) {
         sendChat(scname, `/w ${msg.who} **ERROR:** You need to select at least one character.`);
         sendChat(scname, `/w gm **ERROR:** ${msg.who} needs to select at least one character.`);
         return;
@@ -377,29 +380,28 @@ on('ready', () => {
       // Retrieve target name
       // Double quotes must be used because multiple players could have the same first name, last name, etc
       const targetName = getStringInQuotes(msg.content);
-      if(targetName == null){
+      if (targetName == null) {
         return;
       }
 
       // Retrieve target's id
-      let targetChar = getCharByName(targetName);
-      if(targetChar == null){
+      const targetChar = getCharByName(targetName);
+      if (targetChar == null) {
         return;
       }
-      let targetId = targetChar.id;
+      const targetId = targetChar.id;
       output = '';
       let transactionOutput = '';
       let donorOutput = '';
       let targetOutput = '';
 
       let donorName = '';
-      let donor;
-      if(defaultCharacterName == null){
+      if (defaultCharacterName == null) {
         if (msg.selected.length > 1) {
           sendChat(scname, '**ERROR:** Transfers can only have one sender.');
           return;
         }
-        let obj = msg.selected[0];
+        const obj = msg.selected[0];
         const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
         if (token) {
           donor = getObj('character', token.get('represents'));
@@ -544,16 +546,16 @@ on('ready', () => {
 
       // Retrieve target name
       const targetName = getStringInQuotes(msg.content);
-      if(targetName == null){
+      if (targetName == null) {
         return;
       }
 
       // Retrieve target's id
-      let targetChar = getCharByName(targetName);
-      if(targetChar == null){
+      const targetChar = getCharByName(targetName);
+      if (targetChar == null) {
         return;
       }
-      let targetId = targetChar.id;
+      const targetId = targetChar.id;
 
       output = '';
       let transactionOutput = '';
@@ -562,12 +564,12 @@ on('ready', () => {
       let invoicer;
       let invoicerName = '';
       let invoiceAmount = '';
-      if(defaultCharacterName == null){
+      if (defaultCharacterName == null) {
         if (msg.selected.length > 1) {
           sendChat(scname, '**ERROR:** Transfers can only have one sender.');
           return;
         }
-        let obj = msg.selected[0];
+        const obj = msg.selected[0];
         const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
         if (token) {
           donor = getObj('character', token.get('represents'));
@@ -638,11 +640,11 @@ on('ready', () => {
       }
 
       // Load target's existing account
-      let tpp = parseFloat(getattr(targetId, 'pp')) || 0;
-      let tgp = parseFloat(getattr(targetId, 'gp')) || 0;
-      let tep = parseFloat(getattr(targetId, 'ep')) || 0;
-      let tsp = parseFloat(getattr(targetId, 'sp')) || 0;
-      let tcp = parseFloat(getattr(targetId, 'cp')) || 0;
+      const tpp = parseFloat(getattr(targetId, 'pp')) || 0;
+      const tgp = parseFloat(getattr(targetId, 'gp')) || 0;
+      const tep = parseFloat(getattr(targetId, 'ep')) || 0;
+      const tsp = parseFloat(getattr(targetId, 'sp')) || 0;
+      const tcp = parseFloat(getattr(targetId, 'cp')) || 0;
 
       targetOutput += `<hr><b>Current Funds of ${targetName}</b>`;
       targetOutput += `<br> ${tpp}pp`;
@@ -672,7 +674,7 @@ on('ready', () => {
           }
         });
       } else {
-        let character = getCharByName(defaultCharacterName);
+        const character = getCharByName(defaultCharacterName);
         if (character) {
           const coinStatus = playerCoinStatus(character);
           sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Coin Purse Status</b></b><hr>${coinStatus[0]}}}`);
@@ -704,15 +706,15 @@ on('ready', () => {
       output = '';
       let transactionOutput = '';
       let donorOutput = '';
-      let targetOutput = '';
+      const targetOutput = ''; // eslint-disable-line no-unused-vars
       let donorName = '';
 
-      if(defaultCharacterName == null){
+      if (defaultCharacterName == null) {
         if (msg.selected.length > 1) {
           sendChat(scname, '**ERROR:** Transfers can only have one sender.');
           return;
         }
-        let obj = msg.selected[0];
+        const obj = msg.selected[0];
         const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
         if (token) {
           donor = getObj('character', token.get('represents'));
@@ -809,16 +811,16 @@ on('ready', () => {
     }
 
     // Set the default character for a given player
-    if(argTokens.includes('-setdefaultCharacterName') || argTokens.includes('-sc')) {
+    if (argTokens.includes('-setdefaultCharacterName') || argTokens.includes('-sc')) {
       let setNewCharacter = false;
-      let pcToken = msg.selected[0];
+      const pcToken = msg.selected[0];
       const token = getObj('graphic', pcToken._id); // eslint-disable-line no-underscore-dangle
       if (token) {
-        let pc = getObj('character', token.get('represents'));
-        if(pc) {
+        const pc = getObj('character', token.get('represents'));
+        if (pc) {
           pcName = getAttrByName(pc.id, 'character_name');
-          if(pcName) {
-            let mapLog = `Mapping Speaker ${msg.playerid} to PC ${pcName}`;
+          if (pcName) {
+            const mapLog = `Mapping Speaker ${msg.playerid} to PC ${pcName}`;
             log(mapLog);
             state.CashMaster.DefaultCharacterNames[msg.playerid] = pcName;
             sendChat(scname, `/w gm ${mapLog}`);
@@ -827,7 +829,7 @@ on('ready', () => {
           }
         }
       }
-      if(!setNewCharacter){
+      if (!setNewCharacter) {
         sendChat(scname, `/w ${msg.who} **ERROR:** You did not have a named character token selected.`);
       }
     }
@@ -1188,16 +1190,16 @@ on('ready', () => {
 
       // Set Party to selected
       if (argTokens.includes('-setParty') || argTokens.includes('-sp')) {
-        let partyList = [];
+        const partyList = [];
         if (!argTokens.includes('-clear')) {
           msg.selected.forEach((obj) => {
             const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
             let pc;
             if (token) {
               pc = getObj('character', token.get('represents'));
-              if(pc) {
+              if (pc) {
                 pcName = getAttrByName(pc.id, 'character_name');
-                if(pcName) {
+                if (pcName) {
                   partyList.push(pcName);
                 }
               }
@@ -1212,7 +1214,6 @@ on('ready', () => {
 
       // Calculate party gold value
       if (partyGoldOperation || argTokens.includes('-overview') || argTokens.includes('-o')) {
-
         //! overview
         partytotal = 0;
         partycounter = 0;
