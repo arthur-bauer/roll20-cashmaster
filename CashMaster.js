@@ -160,11 +160,11 @@ const changeMoney = (startamount, addamount) => {
       amount3 = amount2 * 10;
     }
     if (
-      (total[0] * 10) +
-      total[1] +
-      (total[2] / 2) +
-      (total[3] / 10) +
-      (total[4] / 100)
+      (total[0] * 10)
+      + total[1]
+      + (total[2] / 2)
+      + (total[3] / 10)
+      + (total[4] / 100)
       >= -amount3
     ) {
       total[4] += amount3 * 100;
@@ -267,11 +267,11 @@ const playerCoinStatus = (character, usd = 110) => {
   const sp = parseFloat(getattr(character.id, 'sp')) || 0;
   const cp = parseFloat(getattr(character.id, 'cp')) || 0;
   const total = Math.round((
-    (pp * 10) +
-  (ep * 0.5) +
-  gp +
-  (sp / 10) +
-  (cp / 100)
+    (pp * 10)
+  + (ep * 0.5)
+  + gp
+  + (sp / 10)
+  + (cp / 100)
   ) * 10000) / 10000;
   const weight = (pp + gp + ep + sp + cp) / 50;
 
@@ -314,7 +314,8 @@ const getCharByName = (characterName) => {
   if (list.length === 0) {
     sendChat(scname, `**ERROR:** No character exists by the name ${characterName}.  Did you forget to include the surname?`);
     return null;
-  } else if (list.length > 1) {
+  }
+  if (list.length > 1) {
     sendChat(scname, `**ERROR:** character name ${characterName} must be unique.`);
     return null;
   }
@@ -399,6 +400,54 @@ on('ready', () => {
     cpa = cpg.exec(input);
   };
 
+  // !cm -transfer -noToken -S "Tazeka Liranov,Isabelle Mori" -T "Lin'Tu,Cuthy" 10gp 10sp
+  // Tazeka   -L4nciOP2ZVZSyVntRw7
+  // Izzy     -L4ncF3ych3DLtWaY3uY
+  // Cuthy    -L4ndWpZwfNSkcP5-fjT
+  // Lin      -L84VTtYCCHTBE35xq7C
+  // Damiana  -L4nd9_YfQFiEiOlS8sh
+  // !cm -transfer -noToken -S #L4nciOP2ZVZSyVntRw7,L4ncF3ych3DLtWaY3uY# -T #L84VTtYCCHTBE35xq7C,L4ndWpZwfNSkcP5-fjT# 10gp 10sp
+  const getSubjectsAndTargets = (msg, subcommand, argTokens) => {
+    // If nothing is selected or if the user has manually declared no use of selection
+    if (msg.selected == null || argTokens.includes('-noToken') || argTokens.includes('-nt')) {
+      const subjectTagIndex = argTokens.findIndex(element => element === '-S');
+
+      // Report error to user
+      if (subjectTagIndex < 0) {
+        if (!playerIsGM(msg.playerid)) {
+          sendChat(scname, `/w ${msg.who} **ERROR:** You need to select at least one character.`);
+        }
+        sendChat(scname, `/w gm **ERROR:** ${msg.who} needs to select at least one character.`);
+        return null;
+      }
+
+      const subjectStringStartIndex = subcommand.indexOf('"') + 1;
+      const subjectStringStopIndex = subcommand.indexOf('"', subjectStringStartIndex);
+      const subjectString = subcommand.substring(subjectStringStartIndex, subjectStringStopIndex);
+      const subjectNames = subjectString.split(',');
+
+      const subjectList = [];
+      subjectNames.forEach((subjectName) => {
+        subjectList.push(getCharByName(subjectName));
+      });
+
+      const targetStringStartIndex = subcommand.indexOf('"', subjectStringStopIndex + 4);
+      const targetStringStopIndex = subcommand.indexOf('"', targetStringStartIndex);
+      const targetString = subcommand.substring(targetStringStartIndex, targetStringStopIndex);
+      const targetNames = targetString.split(',');
+
+      const targetList = [];
+      targetNames.forEach((targetName) => {
+        targetList.push(getCharByName(targetName));
+      });
+
+      return {
+        Subjects: subjectList,
+        Targets: targetList,
+      };
+    }
+  };
+
   const printTransactionHistory = (sender) => {
     let historyContent = `/w ${sender} &{template:${rt[0]}} {{${rt[1]}=<h3>Cash Master</h3><hr>`;
     state.CashMaster.TransactionHistory.forEach((transaction) => {
@@ -449,6 +498,9 @@ on('ready', () => {
       log(`CM Subcommand: ${subcommand}`);
       const argTokens = subcommand.split(/\s+/);
 
+      let subjectList = getSubjectList(msg.selected, subcommand, argTokens);
+      // let targetList = getTargetList(subcommand, argTokens);
+
       // Operations that do not require a selection
       if (subcommand === '!cm' || argTokens.includes('-help') || argTokens.includes('-h')) {
         //! help
@@ -456,28 +508,28 @@ on('ready', () => {
       }
 
       if (argTokens.includes('-menu') || argTokens.includes('-toolbar') || argTokens.includes('-tool')) {
-        let menuContent = `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<h3>Cash Master</h3><hr>` +
-          '<h4>Universal Commands</h4>[Toolbar](!cm -tool)' +
-            '<br>[Status](!cm -status)' +
-            `<br>[Transfer to PC](!cm -transfer &#34;?{Recipient${getRecipientOptions()}}&#34; ?{Currency to Transfer})` +
-            '<br>[Transfer to NPC](!cm -giveNPC &#34;?{List recipient name and reason}&#34; ?{Currency to Transfer})' +
-            `<br>[Invoice Player](!cm -invoice &#34;?{Invoicee${getRecipientOptions()}}&#34; ?{Currency to Request})` +
-            '<br>[Set Default Character](!cm -sc ?{Will you set a new default character|Yes})';
+        let menuContent = `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<h3>Cash Master</h3><hr>`
+          + '<h4>Universal Commands</h4>[Toolbar](!cm -tool)'
+            + '<br>[Status](!cm -status)'
+            + `<br>[Transfer to PC](!cm -transfer &#34;?{Recipient${getRecipientOptions()}}&#34; ?{Currency to Transfer})`
+            + '<br>[Transfer to NPC](!cm -giveNPC &#34;?{List recipient name and reason}&#34; ?{Currency to Transfer})'
+            + `<br>[Invoice Player](!cm -invoice &#34;?{Invoicee${getRecipientOptions()}}&#34; ?{Currency to Request})`
+            + '<br>[Set Default Character](!cm -sc ?{Will you set a new default character|Yes})';
         if (playerIsGM(msg.playerid)) {
           menuContent = `${menuContent
-          }<h4>GM-Only Commands</h4>` +
-          '<b>Base Commands</b>' +
-            '<br>[Readme](!cm -help)<br>[Party Overview](!cm -overview)' +
-            '<br>[Selected USD](!cm -overview --usd)' +
-          '<br><b>Accounting Commands</b>' +
-            '<br>[Credit Each Selected](!cm -add ?{Currency to Add})' +
-            '<br>[Bill Each Selected](!cm -sub ?{Currency to Bill})' +
-            '<br>[Split Among Selected](!cm -loot ?{Amount to Split})' +
-            '<br>[Transaction History](!cm -th)' +
-          '<br><b>Admin Commands</b>' +
-            '<br>[Compress Coins of Selected](!cm -merge)' +
-            '<br>[Reallocate Coins](!cm -s ?{Will you REALLOCATE party funds evenly|Yes})' +
-            '<br>[Set Party to Selected](!cm -sp ?{Will you SET the party to selected|Yes})';
+          }<h4>GM-Only Commands</h4>`
+          + '<b>Base Commands</b>'
+            + '<br>[Readme](!cm -help)<br>[Party Overview](!cm -overview)'
+            + '<br>[Selected USD](!cm -overview --usd)'
+          + '<br><b>Accounting Commands</b>'
+            + '<br>[Credit Each Selected](!cm -add ?{Currency to Add})'
+            + '<br>[Bill Each Selected](!cm -sub ?{Currency to Bill})'
+            + '<br>[Split Among Selected](!cm -loot ?{Amount to Split})'
+            + '<br>[Transaction History](!cm -th)'
+          + '<br><b>Admin Commands</b>'
+            + '<br>[Compress Coins of Selected](!cm -merge)'
+            + '<br>[Reallocate Coins](!cm -s ?{Will you REALLOCATE party funds evenly|Yes})'
+            + '<br>[Set Party to Selected](!cm -sp ?{Will you SET the party to selected|Yes})';
         }
         menuContent += '}}';
         sendChat(scname, menuContent);
@@ -1015,11 +1067,11 @@ on('ready', () => {
               sp = parseFloat(getattr(character.id, 'sp')) || 0;
               cp = parseFloat(getattr(character.id, 'cp')) || 0;
               total = Math.round((
-                (pp * 10) +
-                (ep * 0.5) +
-                gp +
-                (sp / 10) +
-                (cp / 100)
+                (pp * 10)
+                + (ep * 0.5)
+                + gp
+                + (sp / 10)
+                + (cp / 100)
               ) * 10000) / 10000;
               partytotal = total + partytotal;
             }
@@ -1040,8 +1092,7 @@ on('ready', () => {
             if (character) {
               // Load player's existing account
               const characterName = getAttrByName(character.id, 'character_name');
-              const playerAccount =
-              [
+              const playerAccount = [
                 (parseFloat(getattr(character.id, 'pp')) || 0),
                 (parseFloat(getattr(character.id, 'gp')) || 0),
                 (parseFloat(getattr(character.id, 'ep')) || 0),
@@ -1195,11 +1246,11 @@ on('ready', () => {
             const targetFinal = [pp, gp, ep, sp, cp];
 
             total = Math.round((
-              (pp * 10) +
-              (ep * 0.5) +
-              gp +
-              (sp / 10) +
-              (cp / 100)
+              (pp * 10)
+              + (ep * 0.5)
+              + gp
+              + (sp / 10)
+              + (cp / 100)
             ) * 10000) / 10000;
             partytotal = total + partytotal;
 
