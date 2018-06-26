@@ -327,10 +327,18 @@ const getStringInQuotes = (string) => {
   const startQuote = string.indexOf('"');
   const endQuote = string.lastIndexOf('"');
   if (startQuote >= endQuote) {
-    sendChat(scname, '**ERROR:** You must specify a target by name within double quotes.');
+    sendChat(scname, `*ERROR:** You must specify a target by name within double quotes in the phrase ${string}`);
     return null;
   }
   return string.substring(startQuote + 1, endQuote);
+};
+
+const getDefaultCharNameFromPlayer = (playerid) => {
+  const defaultName = state.CashMaster.DefaultCharacterNames[playerid];
+  if (!defaultName) {
+    return null;
+  }
+  return defaultName;
 };
 
 on('ready', () => {
@@ -406,46 +414,119 @@ on('ready', () => {
   // Cuthy    -L4ndWpZwfNSkcP5-fjT
   // Lin      -L84VTtYCCHTBE35xq7C
   // Damiana  -L4nd9_YfQFiEiOlS8sh
-  // !cm -transfer -noToken -S #L4nciOP2ZVZSyVntRw7,L4ncF3ych3DLtWaY3uY# -T #L84VTtYCCHTBE35xq7C,L4ndWpZwfNSkcP5-fjT# 10gp 10sp
-  const getSubjectsAndTargets = (msg, subcommand, argTokens) => {
-    // If nothing is selected or if the user has manually declared no use of selection
-    if (msg.selected == null || argTokens.includes('-noToken') || argTokens.includes('-nt')) {
-      const subjectTagIndex = argTokens.findIndex(element => element === '-S');
+  // !cm -transfer -noToken -S #L4nciOP2ZVZSyVntRw7,L4ncF3ych3DLtWaY3uY# -T #L84VTtYCCHTBE35xq7C,L4ndWpZwfNSkcP5-fjT# -C "10gp 10sp"
+  const parseInput = (msg, subcommand, argTokens) => {
+    let subjectList = [];
+    let targetList = [];
+    let currencySpecified = false;
 
-      // Report error to user
-      if (subjectTagIndex < 0) {
-        if (!playerIsGM(msg.playerid)) {
-          sendChat(scname, `/w ${msg.who} **ERROR:** You need to select at least one character.`);
+    try {
+      // Advanced Mode
+      const tagList = subcommand.split(' -');
+      log(`TagList: ${tagList}`);
+      tagList.forEach((param) => {
+        log(`Param: ${param}`);
+        if (param.startsWith('S ')) {
+          log(`Subject Param ${param}`);
+          const subjectNameList = getStringInQuotes(param);
+          const subjectNames = subjectNameList.split(',');
+          subjectNames.forEach((subjectName) => {
+            const subject = getCharByName(subjectName);
+            if (subject === null) {
+              return;
+            }
+            subjectList.push(subject);
+          });
+        } else if (param.startsWith('T ')) {
+          log(`Target Param ${param}`);
+          const targetNameList = getStringInQuotes(param);
+          const targetNames = targetNameList.split(',');
+          targetNames.forEach((targetName) => {
+            const target = getCharByName(targetName);
+            if (target === null) {
+              return;
+            }
+            subjectList.push(target);
+          });
+        } else if (param.startsWith('C ')) {
+          log(`Cash Param ${param}`);
+          const currencyString = getStringInQuotes(param);
+          if (currencyString === null) {
+            return;
+          }
+          populateCoinContents(currencyString);
+          currencySpecified = true;
         }
-        sendChat(scname, `/w gm **ERROR:** ${msg.who} needs to select at least one character.`);
-        return null;
+      });
+
+      // Simple Mode
+      if (subjectList.length === 0) {
+        // Prevent double-parsing
+        targetList = [];
+
+        const ambiguousListStart = subcommand.indexOf('"');
+        const ambiguousListEnd = subcommand.lastIndexOf('"');
+        const ambiguousNameList = subcommand.substring(ambiguousListStart + 1, ambiguousListEnd);
+        const ambiguousNames = ambiguousNameList.split(',');
+
+        const defaultName = getDefaultCharNameFromPlayer(msg.playerid);
+
+        // In the event the user has no default and token selected (or have specified -noToken), assume subject
+        if (defaultName === null && (msg.selected === null || argTokens.includes('-noToken') || argTokens.includes('-nt'))) {
+          ambiguousNames.forEach((subjectName) => {
+            subjectList.push(getCharByName(subjectName));
+          });
+        } else {
+          // Otherwise, assume selected are subject and quoted are targets
+          ambiguousNames.forEach((targetName) => {
+            targetList.push(getCharByName(targetName));
+          });
+
+          msg.selected.forEach((selection) => {
+            const token = getObj('graphic', selection._id); // eslint-disable-line no-underscore-dangle
+            let subject = null;
+            if (token) {
+              subject = getObj('character', token.get('represents'));
+            }
+            if (subject === null) {
+              sendChat(scname, '**ERROR:** sender does not exist.');
+              return null;
+            }
+            subjectList.push(subject);
+            return null;
+          });
+
+          log(`Defaulting to Player's Default Char: ${defaultName}`);
+          if (subjectList.length === 0) {
+            const subject = getCharacterFromName(defaultName);
+            if (subject === null) {
+              return null;
+            }
+            subjectList.push(subject);
+          }
+        }
       }
 
-      const subjectStringStartIndex = subcommand.indexOf('"') + 1;
-      const subjectStringStopIndex = subcommand.indexOf('"', subjectStringStartIndex);
-      const subjectString = subcommand.substring(subjectStringStartIndex, subjectStringStopIndex);
-      const subjectNames = subjectString.split(',');
-
-      const subjectList = [];
-      subjectNames.forEach((subjectName) => {
-        subjectList.push(getCharByName(subjectName));
-      });
-
-      const targetStringStartIndex = subcommand.indexOf('"', subjectStringStopIndex + 4);
-      const targetStringStopIndex = subcommand.indexOf('"', targetStringStartIndex);
-      const targetString = subcommand.substring(targetStringStartIndex, targetStringStopIndex);
-      const targetNames = targetString.split(',');
-
-      const targetList = [];
-      targetNames.forEach((targetName) => {
-        targetList.push(getCharByName(targetName));
-      });
-
-      return {
-        Subjects: subjectList,
-        Targets: targetList,
-      };
+      // If given no particular subset to parse, parse the whole subcommand
+      // WARNING: This could cause unexpected behavior when using object id mode
+      if (!currencySpecified) {
+        populateCoinContents(subcommand);
+      }
+    } catch (e) {
+      if (!playerIsGM(msg.playerid)) {
+        sendChat(scname, `/w ${msg.who} **ERROR:** Invalid input string.`);
+      }
+      sendChat(scname, `/w gm **ERROR:** ${msg.who} needs to use a valid input string.`);
+      log(`Parsing Error: ${e}`);
+      return null;
     }
+
+    log(`Subjects: ${subjectList}`);
+    log(`Targets: ${targetList}`);
+    return {
+      Subjects: subjectList,
+      Targets: targetList,
+    };
   };
 
   const printTransactionHistory = (sender) => {
@@ -498,9 +579,6 @@ on('ready', () => {
       log(`CM Subcommand: ${subcommand}`);
       const argTokens = subcommand.split(/\s+/);
 
-      let subjectList = getSubjectList(msg.selected, subcommand, argTokens);
-      // let targetList = getTargetList(subcommand, argTokens);
-
       // Operations that do not require a selection
       if (subcommand === '!cm' || argTokens.includes('-help') || argTokens.includes('-h')) {
         //! help
@@ -533,6 +611,11 @@ on('ready', () => {
         }
         menuContent += '}}';
         sendChat(scname, menuContent);
+        return;
+      }
+
+      const parsedInput = parseInput(msg.content, subcommand, argTokens);
+      if (parsedInput === null) {
         return;
       }
 
