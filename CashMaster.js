@@ -422,10 +422,8 @@ on('ready', () => {
     try {
       // Advanced Mode
       const tagList = subcommand.split(' -');
-      log(`TagList: ${tagList}`);
       tagList.forEach((param) => {
         if (param.startsWith('S ')) {
-          log(`Subject Param ${param}`);
           const subjectNameList = getStringInQuotes(param);
           const subjectNames = subjectNameList.split(',');
           subjectNames.forEach((subjectName) => {
@@ -436,7 +434,6 @@ on('ready', () => {
             subjectList.push(subject);
           });
         } else if (param.startsWith('T ')) {
-          log(`Target Param ${param}`);
           const targetNameList = getStringInQuotes(param);
           const targetNames = targetNameList.split(',');
           targetNames.forEach((targetName) => {
@@ -447,7 +444,6 @@ on('ready', () => {
             targetList.push(target);
           });
         } else if (param.startsWith('C ')) {
-          log(`Cash Param ${param}`);
           const currencyString = getStringInQuotes(param);
           if (currencyString === null) {
             return;
@@ -461,6 +457,7 @@ on('ready', () => {
       if (subjectList.length === 0) {
         // Prevent double-parsing
         targetList = [];
+        log('Simple Mode');
 
         const ambiguousNameList = getStringInQuotes(subcommand);
         let ambiguousNames = [];
@@ -473,12 +470,20 @@ on('ready', () => {
         // In the event the user has no default and token selected (or have specified -noToken), assume subject
         if (defaultName === null && (msg.selected === null || argTokens.includes('-noToken') || argTokens.includes('-nt'))) {
           ambiguousNames.forEach((subjectName) => {
-            subjectList.push(getCharByName(subjectName));
+            const subject = getCharByName(subjectName);
+            if (subject === null) {
+              return;
+            }
+            subjectList.push(subject);
           });
         } else {
           // Otherwise, assume selected are subject and quoted are targets
           ambiguousNames.forEach((targetName) => {
-            targetList.push(getCharByName(targetName));
+            const target = getCharByName(targetName);
+            if (target === null) {
+              return;
+            }
+            targetList.push(target);
           });
 
           if (msg.selected != null) {
@@ -623,6 +628,13 @@ on('ready', () => {
       }
       const subjects = parsedSubcommand.Subjects;
       const targets = parsedSubcommand.Targets;
+      if (subjects === null) {
+        log('Invalid Input (null subjects).  Aborting.');
+      }
+      if (subjects.length === 0) {
+        log('Invalid Input (no subjects).  Aborting.');
+      }
+
 
       // Selectionless GM commands
       if (playerIsGM(msg.playerid)) {
@@ -777,14 +789,14 @@ on('ready', () => {
 
       // Invoice between players
       if (argTokens.includes('-invoice') || argTokens.includes('-i')) {
-
         subjects.forEach((subject) => {
           targets.forEach((target) => {
             output = '';
             let transactionOutput = '';
             let targetOutput = '';
-            const subjectName = '';
             let invoiceAmount = '';
+            const subjectName = getAttrByName(subject.id, 'character_name');
+            const targetName = getAttrByName(target.id, 'character_name');
 
             // Check that the sender is not attempting to send money to themselves
             if (subject.id === target.id) {
@@ -793,7 +805,7 @@ on('ready', () => {
             }
 
             // Verify subject has enough to perform transfer
-            // Check if the player attempted to steal from another and populate the transaction data
+            // Check if the player attempted to reverse-invoice themselves
             transactionOutput += '<br><b>Requested Funds:</b>';
             if (ppa !== null) {
               const val = parseFloat(ppa[1]);
@@ -856,11 +868,11 @@ on('ready', () => {
             targetOutput += `<br> ${tcp}cp`;
             sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Invoice Report</b><br>${subjectName}>${targetName}</b><hr>${transactionOutput}${targetOutput}}}`);
             sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Invoice Sent to ${targetName}</b><hr>${transactionOutput}}}`);
-            sendChat(scname, `/w ${targetName} &{template:${rt[0]}} {{${rt[1]}=<b>Invoice Received from ${subjectName}</b><hr>${transactionOutput}${targetOutput}<hr>[Pay](!cm -transfer &#34;${subjectName}&#34;${invoiceAmount})}}`);
-            return;
+            sendChat(scname, `/w ${targetName} &{template:${rt[0]}} {{${rt[1]}=<b>Invoice Received from ${subjectName}</b><hr>${transactionOutput}${targetOutput}<hr>[Pay](!cm -transfer -S &#34;${targetName}&#34; -T &#34;${subjectName}&#34; -C &#34;${invoiceAmount}&#34;)}}`);
+
           });
         });
-        
+        return;
       }
 
       // Display coin count to player
