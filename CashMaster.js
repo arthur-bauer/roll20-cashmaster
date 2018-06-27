@@ -1199,8 +1199,6 @@ on('ready', () => {
               subjectFinal[0] += parseFloat(ppa[3]);
             }
             if (gpa) {
-              log("GPA: " + gpa);
-              log("Gpa[3]: " + gpa[3]);
               setattr(subject.id, 'gp', parseFloat(gp) + parseFloat(gpa[3]));
               output += `<br> ${gpa[2]}`;
               subjectFinal[1] += parseFloat(gpa[3]);
