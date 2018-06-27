@@ -357,6 +357,14 @@ const getDefaultCharNameFromPlayer = (playerid) => {
   return defaultName;
 };
 
+class ParseException {
+  constructor(message) {
+    this.message = message;
+    this.name = 'Parse Exception';
+    this.toString = () => `${this.name}: ${this.message}`;
+  }
+}
+
 on('ready', () => {
   const v = '%%version%%'; // version number
   const usd = 110;
@@ -422,13 +430,6 @@ on('ready', () => {
     cpa = cpg.exec(input);
   };
 
-  // !cm -transfer -noToken -S "Tazeka Liranov,Isabelle Mori" -T "Lin'Tu,Cuthy" 10gp 10sp
-  // Tazeka   -L4nciOP2ZVZSyVntRw7
-  // Izzy     -L4ncF3ych3DLtWaY3uY
-  // Cuthy    -L4ndWpZwfNSkcP5-fjT
-  // Lin      -L84VTtYCCHTBE35xq7C
-  // Damiana  -L4nd9_YfQFiEiOlS8sh
-  // !cm -transfer -noToken -S #L4nciOP2ZVZSyVntRw7,L4ncF3ych3DLtWaY3uY# -T #L84VTtYCCHTBE35xq7C,L4ndWpZwfNSkcP5-fjT# -C "10gp 10sp"
   const parseSubcommand = (msg, subcommand, argTokens) => {
     const subjectList = [];
     let targetList = [];
@@ -444,9 +445,12 @@ on('ready', () => {
           const subjectNameList = getStringInQuotes(param);
           const subjectNames = subjectNameList.split(',');
           subjectNames.forEach((subjectName) => {
+            if (subjectName.length === 0) {
+              throw new ParseException('Empty string subject provided!');
+            }
             const subject = getCharByAny(subjectName);
-            if (subject === null) {
-              throw new { message: 'Provided Subject name does not exist!' }();
+            if (subject == null) {
+              throw new ParseException('Provided Subject name does not exist!');
             }
             subjectList.push(subject);
           });
@@ -457,9 +461,12 @@ on('ready', () => {
             if (allowStringTarget) {
               targetList.push(targetName);
             } else {
+              if (targetName.length === 0) {
+                throw new ParseException('Empty string target provided!');
+              }
               const target = getCharByAny(targetName);
-              if (target === null) {
-                throw new { message: 'Provided Target name does not exist!' }();
+              if (target == null) {
+                throw new ParseException('Provided Target name does not exist!');
               }
               targetList.push(target);
             }
@@ -491,8 +498,8 @@ on('ready', () => {
         if (defaultName === null && (msg.selected === null || argTokens.includes('-noToken') || argTokens.includes('-nt'))) {
           ambiguousNames.forEach((subjectName) => {
             const subject = getCharByAny(subjectName);
-            if (subject === null) {
-              throw new { message: 'Provided Subject name does not exist!' }();
+            if (subject == null) {
+              throw new ParseException('Provided Subject name does not exist!');
             }
             subjectList.push(subject);
           });
@@ -503,8 +510,8 @@ on('ready', () => {
               targetList.push(targetName);
             } else {
               const target = getCharByAny(targetName);
-              if (target === null) {
-                throw new { message: 'Provided Target name does not exist!' }();
+              if (target == null) {
+                throw new ParseException('Provided Target name does not exist!');
               }
               targetList.push(target);
             }
@@ -548,9 +555,8 @@ on('ready', () => {
         populateCoinContents(subcommand);
       }
     } catch (e) {
-      sendChat(scname, `/w ${msg.who} **ERROR:** Parse Error: ${e}`);
-      sendChat(scname, `/w gm **ERROR:** ${msg.who} received Parse Error: ${e}`);
-      log(`Parsing Error: ${e.message}`);
+      sendChat(scname, `/w ${msg.who} **ERROR:** ${e}`);
+      sendChat(scname, `/w gm **ERROR:** ${msg.who} received: ${e}`);
       return null;
     }
 
@@ -606,7 +612,6 @@ on('ready', () => {
     initCM();
 
     // Log the received command
-    log(`Physical Selection: ${msg.selected}`);
     log(`CM Command: ${msg.content}`);
     // Execute each operation
     subcommands.forEach((subcommand) => {
