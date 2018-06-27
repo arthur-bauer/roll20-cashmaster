@@ -305,25 +305,35 @@ const getRecipientOptions = () => {
   return null;
 };
 
-const getCharByName = (characterName, quietMode = false) => {
-  const scname = 'CashMaster';
+const getCharByAny = (nameOrId) => {
+  let character = null;
+
+  // Try to directly load the character ID
+  character = getObj('character', nameOrId);
+  if (character) {
+    return character;
+  }
+
+  // Try to load indirectly from the token ID
+  const token = getObj('graphic', nameOrId);
+  if (token) {
+    character = getObj('character', token.get('represents'));
+    if (character) {
+      return character;
+    }
+  }
+
+  // Try loading through char name
   const list = findObjs({
     _type: 'character',
-    name: characterName,
+    name: nameOrId,
   });
-  if (list.length === 0) {
-    if (!quietMode) {
-      sendChat(scname, `**ERROR:** No character exists by the name ${characterName}.  Did you forget to include the surname?`);
-    }
-    return null;
+  if (list.length === 1) {
+    return list[0];
   }
-  if (list.length > 1) {
-    if (!quietMode) {
-      sendChat(scname, `**ERROR:** character name ${characterName} must be unique.`);
-    }
-    return null;
-  }
-  return list[0];
+
+  // Default to null
+  return null;
 };
 
 const getStringInQuotes = (string, quietMode = false) => {
@@ -372,7 +382,7 @@ on('ready', () => {
     rt = ['default', `name=${scname} }}{{note`];
   }
 
-  log(`${scname} v${v} online. Select one or more party members, then use \`!cm -help\``);
+  log(`${scname} v${v} online. For assistance, use \`!cm -help\``);
 
   let pp;
   let gp;
@@ -396,19 +406,19 @@ on('ready', () => {
   let pcName;
 
   const populateCoinContents = (input) => {
-    ppg = /([0-9 -]+)pp/;
+    ppg = /([\s|,|^|"|'])((-?\d{1,16} ?)(pp|PP|Pp|pP))(\s|,|$|"|')/;
     ppa = ppg.exec(input);
 
-    gpg = /([0-9 -]+)gp/;
+    gpg = /([\s|,|^|"|'])((-?\d{1,16} ?)(gp|GP|Gp|gP))(\s|,|$|"|')/;
     gpa = gpg.exec(input);
 
-    epg = /([0-9 -]+)ep/;
+    epg = /([\s|,|^|"|'])((-?\d{1,16} ?)(ge|EP|Ep|eP))(\s|,|$|"|')/;
     epa = epg.exec(input);
 
-    spg = /([0-9 -]+)sp/;
+    spg = /([\s|,|^|"|'])((-?\d{1,16} ?)(sp|SP|Sp|sP))(\s|,|$|"|')/;
     spa = spg.exec(input);
 
-    cpg = /([0-9 -]+)cp/;
+    cpg = /([\s|,|^|"|'])((-?\d{1,16} ?)(cp|CP|Cp|cP))(\s|,|$|"|')/;
     cpa = cpg.exec(input);
   };
 
@@ -425,6 +435,7 @@ on('ready', () => {
     let currencySpecified = false;
     const allowStringTarget = argTokens.includes('-dropWithReason') || argTokens.includes('-giveNPC');
 
+    // Wrapping in try/catch because of the forEach.  This allows us to easily escape to report errors to the user immediately.
     try {
       // Advanced Mode
       const tagList = subcommand.split(' -');
@@ -433,7 +444,7 @@ on('ready', () => {
           const subjectNameList = getStringInQuotes(param);
           const subjectNames = subjectNameList.split(',');
           subjectNames.forEach((subjectName) => {
-            const subject = getCharByName(subjectName);
+            const subject = getCharByAny(subjectName);
             if (subject === null) {
               throw new { message: 'Provided Subject name does not exist!' }();
             }
@@ -446,7 +457,7 @@ on('ready', () => {
             if (allowStringTarget) {
               targetList.push(targetName);
             } else {
-              const target = getCharByName(targetName);
+              const target = getCharByAny(targetName);
               if (target === null) {
                 throw new { message: 'Provided Target name does not exist!' }();
               }
@@ -467,7 +478,6 @@ on('ready', () => {
       if (subjectList.length === 0) {
         // Prevent double-parsing
         targetList = [];
-        log('Simple Mode');
 
         const ambiguousNameList = getStringInQuotes(subcommand, true);
         let ambiguousNames = [];
@@ -480,9 +490,9 @@ on('ready', () => {
         // In the event the user has no default and token selected (or have specified -noToken), assume subject
         if (defaultName === null && (msg.selected === null || argTokens.includes('-noToken') || argTokens.includes('-nt'))) {
           ambiguousNames.forEach((subjectName) => {
-            const subject = getCharByName(subjectName);
+            const subject = getCharByAny(subjectName);
             if (subject === null) {
-              return;
+              throw new { message: 'Provided Subject name does not exist!' }();
             }
             subjectList.push(subject);
           });
@@ -492,14 +502,15 @@ on('ready', () => {
             if (allowStringTarget) {
               targetList.push(targetName);
             } else {
-              const target = getCharByName(targetName);
+              const target = getCharByAny(targetName);
               if (target === null) {
-                return;
+                throw new { message: 'Provided Target name does not exist!' }();
               }
               targetList.push(target);
             }
           });
 
+          // Load from selection
           if (msg.selected != null) {
             msg.selected.forEach((selection) => {
               log(`Selection: ${selection}`);
@@ -517,12 +528,12 @@ on('ready', () => {
             });
           }
 
+          // Load from default
           if (subjectList.length === 0) {
-            log(`Defaulting to Player's Default Char: ${defaultName}`);
             if (defaultName === null) {
               return null;
             }
-            const subject = getCharByName(defaultName);
+            const subject = getCharByAny(defaultName);
             if (subject === null) {
               return null;
             }
@@ -692,40 +703,40 @@ on('ready', () => {
             // Check if the player attempted to steal from another and populate the transaction data
             transactionOutput += '<br><b>Transaction Data</b>';
             if (ppa !== null) {
-              const val = parseFloat(ppa[1]);
-              transactionOutput += `<br> ${ppa[0]}`;
+              const val = parseFloat(ppa[3]);
+              transactionOutput += `<br> <em style='color:blue;'>${ppa[2]}</em>`;
               if (val < 0 && !playerIsGM(msg.playerid)) {
                 sendChat(scname, `**ERROR:** ${msg.who} may not demand payment from ${targetName}.`);
                 return;
               }
             }
             if (gpa !== null) {
-              const val = parseFloat(gpa[1]);
-              transactionOutput += `<br> ${gpa[0]}`;
+              const val = parseFloat(gpa[3]);
+              transactionOutput += `<br> <em style='color:orange;'>${gpa[2]}</em>`;
               if (val < 0 && !playerIsGM(msg.playerid)) {
                 sendChat(scname, `**ERROR:** ${msg.who} may not demand payment from ${targetName}.`);
                 return;
               }
             }
             if (epa !== null) {
-              const val = parseFloat(epa[1]);
-              transactionOutput += `<br> ${epa[0]}`;
+              const val = parseFloat(epa[3]);
+              transactionOutput += `<br> <em style='color:silver;'>${epa[2]}</em>`;
               if (val < 0 && !playerIsGM(msg.playerid)) {
                 sendChat(scname, `**ERROR:** ${msg.who} may not demand payment from ${targetName}.`);
                 return;
               }
             }
             if (spa !== null) {
-              const val = parseFloat(spa[1]);
-              transactionOutput += `<br> ${spa[0]}`;
+              const val = parseFloat(spa[3]);
+              transactionOutput += `<br> <em style='color:grey;'>${spa[2]}</em>`;
               if (val < 0 && !playerIsGM(msg.playerid)) {
                 sendChat(scname, `**ERROR:** ${msg.who} may not demand payment from ${targetName}.`);
                 return;
               }
             }
             if (cpa !== null) {
-              const val = parseFloat(cpa[1]);
-              transactionOutput += `<br> ${cpa[0]}`;
+              const val = parseFloat(cpa[3]);
+              transactionOutput += `<br> <em style='color:brown;'>${cpa[2]}</em>`;
               if (val < 0 && !playerIsGM(msg.playerid)) {
                 sendChat(scname, `/w gm **ERROR:** ${msg.who} may not demand payment from ${targetName}.`);
                 return;
@@ -741,11 +752,11 @@ on('ready', () => {
             let subjectAccount = [dpp, dgp, dep, dsp, dcp];
             const subjectInitial = [dpp, dgp, dep, dsp, dcp];
 
-            if (ppa !== null) subjectAccount = changeMoney(subjectAccount, ppa[0]);
-            if (gpa !== null) subjectAccount = changeMoney(subjectAccount, gpa[0]);
-            if (epa !== null) subjectAccount = changeMoney(subjectAccount, epa[0]);
-            if (spa !== null) subjectAccount = changeMoney(subjectAccount, spa[0]);
-            if (cpa !== null) subjectAccount = changeMoney(subjectAccount, cpa[0]);
+            if (ppa !== null) subjectAccount = changeMoney(subjectAccount, ppa[2]);
+            if (gpa !== null) subjectAccount = changeMoney(subjectAccount, gpa[2]);
+            if (epa !== null) subjectAccount = changeMoney(subjectAccount, epa[2]);
+            if (spa !== null) subjectAccount = changeMoney(subjectAccount, spa[2]);
+            if (cpa !== null) subjectAccount = changeMoney(subjectAccount, cpa[2]);
 
             // Verify subject has enough to perform transfer
             subjectOutput += `<br><b>${subjectName}</b> has `;
@@ -760,11 +771,11 @@ on('ready', () => {
               setattr(subject.id, 'ep', parseFloat(subjectAccount[2]));
               setattr(subject.id, 'sp', parseFloat(subjectAccount[3]));
               setattr(subject.id, 'cp', parseFloat(subjectAccount[4]));
-              subjectOutput += `<br> ${subjectAccount[0]}pp`;
-              subjectOutput += `<br> ${subjectAccount[1]}gp`;
-              subjectOutput += `<br> ${subjectAccount[2]}ep`;
-              subjectOutput += `<br> ${subjectAccount[3]}sp`;
-              subjectOutput += `<br> ${subjectAccount[4]}cp`;
+              subjectOutput += `<br> <em style='color:blue;'>${subjectAccount[0]}pp</em>`;
+              subjectOutput += `<br> <em style='color:orange;'>${subjectAccount[1]}gp</em>`;
+              subjectOutput += `<br> <em style='color:silver;'>${subjectAccount[2]}ep</em>`;
+              subjectOutput += `<br> <em style='color:grey;'>${subjectAccount[3]}sp</em>`;
+              subjectOutput += `<br> <em style='color:brown;'>${subjectAccount[4]}cp</em>`;
 
               // targetFunds
               let tpp = parseFloat(getattr(target.id, 'pp')) || 0;
@@ -773,11 +784,11 @@ on('ready', () => {
               let tsp = parseFloat(getattr(target.id, 'sp')) || 0;
               let tcp = parseFloat(getattr(target.id, 'cp')) || 0;
               const targetInitial = [tpp, tgp, tep, tsp, tcp];
-              if (ppa !== null) tpp += parseFloat(ppa[1]);
-              if (gpa !== null) tgp += parseFloat(gpa[1]);
-              if (epa !== null) tep += parseFloat(epa[1]);
-              if (spa !== null) tsp += parseFloat(spa[1]);
-              if (cpa !== null) tcp += parseFloat(cpa[1]);
+              if (ppa !== null) tpp += parseFloat(ppa[3]);
+              if (gpa !== null) tgp += parseFloat(gpa[3]);
+              if (epa !== null) tep += parseFloat(epa[3]);
+              if (spa !== null) tsp += parseFloat(spa[3]);
+              if (cpa !== null) tcp += parseFloat(cpa[3]);
               const targetFinal = [tpp, tgp, tep, tsp, tcp];
               const targetEffect = getPlayerEffect(targetName, getDelta(targetFinal, targetInitial));
 
@@ -787,11 +798,11 @@ on('ready', () => {
               setattr(target.id, 'sp', tsp);
               setattr(target.id, 'cp', tcp);
               targetOutput += `<br><b>${targetName}</b> has `;
-              targetOutput += `<br> ${tpp}pp`;
-              targetOutput += `<br> ${tgp}gp`;
-              targetOutput += `<br> ${tep}ep`;
-              targetOutput += `<br> ${tsp}sp`;
-              targetOutput += `<br> ${tcp}cp`;
+              targetOutput += `<br> <em style='color:blue;'>${tpp}pp</em>`;
+              targetOutput += `<br> <em style='color:orange;'>${tgp}gp</em>`;
+              targetOutput += `<br> <em style='color:silver;'>${tep}ep</em>`;
+              targetOutput += `<br> <em style='color:grey;'>${tsp}sp</em>`;
+              targetOutput += `<br> <em style='color:brown;'>${tcp}cp</em>`;
 
               recordTransaction('Transfer to PC', msg.who, [subjectEffect, targetEffect]);
             }
@@ -824,45 +835,45 @@ on('ready', () => {
             // Check if the player attempted to reverse-invoice themselves
             transactionOutput += '<br><b>Requested Funds:</b>';
             if (ppa !== null) {
-              const val = parseFloat(ppa[1]);
-              transactionOutput += `<br> ${ppa[0]}`;
-              invoiceAmount += ` ${ppa[0]}`;
+              const val = parseFloat(ppa[3]);
+              transactionOutput += `<br> ${ppa[2]}`;
+              invoiceAmount += ` ${ppa[2]}`;
               if (val < 0 && !playerIsGM(msg.playerid)) {
                 sendChat(scname, `**ERROR:** ${msg.who} may not reverse-invoice themselves.`);
                 return;
               }
             }
             if (gpa !== null) {
-              const val = parseFloat(gpa[1]);
-              transactionOutput += `<br> ${gpa[0]}`;
-              invoiceAmount += ` ${gpa[0]}`;
+              const val = parseFloat(gpa[3]);
+              transactionOutput += `<br> ${gpa[2]}`;
+              invoiceAmount += ` ${gpa[2]}`;
               if (val < 0 && !playerIsGM(msg.playerid)) {
                 sendChat(scname, `**ERROR:** ${msg.who} may not reverse-invoice themselves.`);
                 return;
               }
             }
             if (epa !== null) {
-              const val = parseFloat(epa[1]);
-              transactionOutput += `<br> ${epa[0]}`;
-              invoiceAmount += ` ${epa[0]}`;
+              const val = parseFloat(epa[3]);
+              transactionOutput += `<br> ${epa[2]}`;
+              invoiceAmount += ` ${epa[2]}`;
               if (val < 0 && !playerIsGM(msg.playerid)) {
                 sendChat(scname, `**ERROR:** ${msg.who} may not reverse-invoice themselves.`);
                 return;
               }
             }
             if (spa !== null) {
-              const val = parseFloat(spa[1]);
-              transactionOutput += `<br> ${spa[0]}`;
-              invoiceAmount += ` ${spa[0]}`;
+              const val = parseFloat(spa[3]);
+              transactionOutput += `<br> ${spa[2]}`;
+              invoiceAmount += ` ${spa[2]}`;
               if (val < 0 && !playerIsGM(msg.playerid)) {
                 sendChat(scname, `**ERROR:** ${msg.who} may not reverse-invoice themselves.`);
                 return;
               }
             }
             if (cpa !== null) {
-              const val = parseFloat(cpa[1]);
-              transactionOutput += `<br> ${cpa[0]}`;
-              invoiceAmount += ` ${cpa[0]}`;
+              const val = parseFloat(cpa[3]);
+              transactionOutput += `<br> ${cpa[2]}`;
+              invoiceAmount += ` ${cpa[2]}`;
               if (val < 0 && !playerIsGM(msg.playerid)) {
                 sendChat(scname, `/w gm **ERROR:** ${msg.who} may not reverse-invoice themselves.`);
                 return;
@@ -911,40 +922,40 @@ on('ready', () => {
           // Check if the player attempted to steal from another and populate the transaction data
           transactionOutput += '<br><b>Transaction Data</b>';
           if (ppa !== null) {
-            const val = parseFloat(ppa[1]);
-            transactionOutput += `<br> ${ppa[0]}`;
+            const val = parseFloat(ppa[3]);
+            transactionOutput += `<br> ${ppa[2]}`;
             if (val < 0 && !playerIsGM(msg.playerid)) {
               sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
               return;
             }
           }
           if (gpa !== null) {
-            const val = parseFloat(gpa[1]);
-            transactionOutput += `<br> ${gpa[0]}`;
+            const val = parseFloat(gpa[3]);
+            transactionOutput += `<br> ${gpa[2]}`;
             if (val < 0 && !playerIsGM(msg.playerid)) {
               sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
               return;
             }
           }
           if (epa !== null) {
-            const val = parseFloat(epa[1]);
-            transactionOutput += `<br> ${epa[0]}`;
+            const val = parseFloat(epa[3]);
+            transactionOutput += `<br> ${epa[2]}`;
             if (val < 0 && !playerIsGM(msg.playerid)) {
               sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
               return;
             }
           }
           if (spa !== null) {
-            const val = parseFloat(spa[1]);
-            transactionOutput += `<br> ${spa[0]}`;
+            const val = parseFloat(spa[3]);
+            transactionOutput += `<br> ${spa[2]}`;
             if (val < 0 && !playerIsGM(msg.playerid)) {
               sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
               return;
             }
           }
           if (cpa !== null) {
-            const val = parseFloat(cpa[1]);
-            transactionOutput += `<br> ${cpa[0]}`;
+            const val = parseFloat(cpa[3]);
+            transactionOutput += `<br> ${cpa[2]}`;
             if (val < 0 && !playerIsGM(msg.playerid)) {
               sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
               return;
@@ -960,11 +971,11 @@ on('ready', () => {
           const subjectInitial = [dpp, dgp, dep, dsp, dcp];
           let subjectAccount = [dpp, dgp, dep, dsp, dcp];
 
-          if (ppa !== null) subjectAccount = changeMoney(subjectAccount, ppa[0]);
-          if (gpa !== null) subjectAccount = changeMoney(subjectAccount, gpa[0]);
-          if (epa !== null) subjectAccount = changeMoney(subjectAccount, epa[0]);
-          if (spa !== null) subjectAccount = changeMoney(subjectAccount, spa[0]);
-          if (cpa !== null) subjectAccount = changeMoney(subjectAccount, cpa[0]);
+          if (ppa !== null) subjectAccount = changeMoney(subjectAccount, ppa[2]);
+          if (gpa !== null) subjectAccount = changeMoney(subjectAccount, gpa[2]);
+          if (epa !== null) subjectAccount = changeMoney(subjectAccount, epa[2]);
+          if (spa !== null) subjectAccount = changeMoney(subjectAccount, spa[2]);
+          if (cpa !== null) subjectAccount = changeMoney(subjectAccount, cpa[2]);
 
           // Verify subject has enough to perform transfer
           subjectOutput += `<br><b>${subjectName}</b> has `;
@@ -1183,29 +1194,31 @@ on('ready', () => {
 
             output += `<br><b>${subjectName}</b>`;
             if (ppa) {
-              setattr(subject.id, 'pp', parseFloat(pp) + parseFloat(ppa[1]));
-              output += `<br> ${ppa[0]}`;
-              subjectFinal[0] += parseFloat(ppa[1]);
+              setattr(subject.id, 'pp', parseFloat(pp) + parseFloat(ppa[3]));
+              output += `<br> ${ppa[2]}`;
+              subjectFinal[0] += parseFloat(ppa[3]);
             }
             if (gpa) {
-              setattr(subject.id, 'gp', parseFloat(gp) + parseFloat(gpa[1]));
-              output += `<br> ${gpa[0]}`;
-              subjectFinal[1] += parseFloat(gpa[1]);
+              log("GPA: " + gpa);
+              log("Gpa[3]: " + gpa[3]);
+              setattr(subject.id, 'gp', parseFloat(gp) + parseFloat(gpa[3]));
+              output += `<br> ${gpa[2]}`;
+              subjectFinal[1] += parseFloat(gpa[3]);
             }
             if (epa) {
-              setattr(subject.id, 'ep', parseFloat(ep) + parseFloat(epa[1]));
-              output += `<br> ${epa[0]}`;
-              subjectFinal[2] += parseFloat(epa[1]);
+              setattr(subject.id, 'ep', parseFloat(ep) + parseFloat(epa[3]));
+              output += `<br> ${epa[2]}`;
+              subjectFinal[2] += parseFloat(epa[3]);
             }
             if (spa) {
-              setattr(subject.id, 'sp', parseFloat(sp) + parseFloat(spa[1]));
-              output += `<br> ${spa[0]}`;
-              subjectFinal[3] += parseFloat(spa[1]);
+              setattr(subject.id, 'sp', parseFloat(sp) + parseFloat(spa[3]));
+              output += `<br> ${spa[2]}`;
+              subjectFinal[3] += parseFloat(spa[3]);
             }
             if (cpa) {
-              setattr(subject.id, 'cp', parseFloat(cp) + parseFloat(cpa[1]));
-              output += `<br> ${cpa[0]}`;
-              subjectFinal[4] += parseFloat(cpa[1]);
+              setattr(subject.id, 'cp', parseFloat(cp) + parseFloat(cpa[3]));
+              output += `<br> ${cpa[2]}`;
+              subjectFinal[4] += parseFloat(cpa[3]);
             }
             transactionEffects.push(getPlayerEffect(subjectName, getDelta(subjectFinal, subjectInitial)));
             sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>GM has Disbursed Coin</b><hr>${output}}}`);
@@ -1232,11 +1245,11 @@ on('ready', () => {
             cp = parseFloat(getattr(subject.id, 'cp')) || 0;
             const targetInitial = [pp, gp, ep, sp, cp];
             let targetFinal = [pp, gp, ep, sp, cp];
-            if (ppa !== null) targetFinal = changeMoney(targetFinal, ppa[0]);
-            if (gpa !== null) targetFinal = changeMoney(targetFinal, gpa[0]);
-            if (epa !== null) targetFinal = changeMoney(targetFinal, epa[0]);
-            if (spa !== null) targetFinal = changeMoney(targetFinal, spa[0]);
-            if (cpa !== null) targetFinal = changeMoney(targetFinal, cpa[0]);
+            if (ppa !== null) targetFinal = changeMoney(targetFinal, ppa[2]);
+            if (gpa !== null) targetFinal = changeMoney(targetFinal, gpa[2]);
+            if (epa !== null) targetFinal = changeMoney(targetFinal, epa[2]);
+            if (spa !== null) targetFinal = changeMoney(targetFinal, spa[2]);
+            if (cpa !== null) targetFinal = changeMoney(targetFinal, cpa[2]);
 
             output += `<br><b>${subjectName}</b> has `;
             if (targetFinal === 'ERROR: Not enough cash.') output += 'not enough cash!';
@@ -1293,19 +1306,19 @@ on('ready', () => {
               let cpt;
 
               if (ppa !== null) {
-                ppt = cashsplit(ppa[1], partymember, partycounter);
+                ppt = cashsplit(ppa[3], partymember, partycounter);
               }
               if (gpa !== null) {
-                gpt = cashsplit(gpa[1], partymember, partycounter);
+                gpt = cashsplit(gpa[3], partymember, partycounter);
               }
               if (epa !== null) {
-                ept = cashsplit(epa[1], partymember, partycounter);
+                ept = cashsplit(epa[3], partymember, partycounter);
               }
               if (spa !== null) {
-                spt = cashsplit(spa[1], partymember, partycounter);
+                spt = cashsplit(spa[3], partymember, partycounter);
               }
               if (cpa !== null) {
-                cpt = cashsplit(cpa[1], partymember, partycounter);
+                cpt = cashsplit(cpa[3], partymember, partycounter);
               }
 
               output += `<br><b>${name}</b>`;
