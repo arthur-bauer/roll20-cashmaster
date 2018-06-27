@@ -39,5 +39,8 @@
   "bugs": {
     "url": "https://github.com/arthur-bauer/roll20-cashmaster/issues"
   },
-  "homepage": "https://github.com/arthur-bauer/roll20-cashmaster#readme"
+  "homepage": "https://github.com/arthur-bauer/roll20-cashmaster#readme",
+  "directories": {
+    "doc": "docs"
+  }
 }

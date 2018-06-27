@@ -67,6 +67,10 @@ Use caution when using the below commands.
 1. `-noToken` and `-nt` will cause CashMaster to disregard what character is selected.
 2. You can use several coin values at once, e.g. `!cm -loot 50gp 150sp 2000cp` or `!cm -pay 2sp 5cp`.
 3. You can combine multiple subcommands into a single chat command with a semicolon `;` between them.  For example, `!cm -add 5gp; -merge`
+4. You can select multiple subjects and targets using **Advanced Mode**.  For example, `!cm -transfer -S "Billy Bob,Joe Bob" -T "Sarah Bob,Sonya Bob" -C "10gp"`.  When using multiple subjects and targets, it will perform an operation for each subject-target pair.  In that case, it will perform four transactions of 10gp each.
+5. In **Advanced Mode**, you don't need to specify `-C "[amoung][currency]"` and can instead just use the standard `[amount][currency]`.  The ` -C ` currency tag allows you to specify the gp value at a particular point in the command in case you have strangley-named or inconveniently ID'd characters.
+6. CashMaster will parse **both character IDs and character names**.  You can even mix and match!  If Billy Bob's ID was `-L4ncF3ych3ZLtWaY3uY`, Instead of the example in **Tip 4**, you could use `!cm -transfer -S "-L4ncF3ych3ZLtWaY3uY,Joe Bob" -T "Sarah Bob,Sonya Bob" -C "10gp"`.
+7. CashMaster is compatible with `@{selected|character_id}` and `@{target|character_id}` as they will simply be parsed down to IDs.  As an example, your players could use `!cm -t -T "@{target|character_id}" 1gp` to transfer a gold amongst themselves.
 
 ## Examples
 
