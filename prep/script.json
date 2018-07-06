@@ -4,8 +4,8 @@
     "version": "%%version%%",
     "previousversions": ["0.4.1","0.5","0.6.0","0.7.0","0.7.1"],
     "description": "%%README%%",
-    "authors": "Arthur B",
-    "roll20userid": "694750",
+    "authors": "Arthur B, Kryx, Michael G.",
+    "roll20userid": "694750,277007,1583758",
     "useroptions": [{"name":"selectedsheet","type":"select","options":["OGL","5E-Shaped","Other"],"default":"OGL","description":"Please select if you use the OGL, the 5E-Shaped or another character sheet (Note: 'Other' might work with some sheets, but not with all of them)."}],    
     "dependencies": [],
     "modifies": {
