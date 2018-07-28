@@ -1,6 +1,6 @@
 {
   "name": "roll20-cashmaster",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Roll20 Cashmaster script",
   "main": "CashMaster.js",
   "dependencies": {},
@@ -39,5 +39,8 @@
   "bugs": {
     "url": "https://github.com/arthur-bauer/roll20-cashmaster/issues"
   },
-  "homepage": "https://github.com/arthur-bauer/roll20-cashmaster#readme"
+  "homepage": "https://github.com/arthur-bauer/roll20-cashmaster#readme",
+  "directories": {
+    "doc": "docs"
+  }
 }
