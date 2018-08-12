@@ -1047,7 +1047,7 @@ on('ready', () => {
         }
       }
 
-      // Set the default character for a given player
+      // Removes the default character for a given player
       if (argTokens.includes('-removeDefaultCharacterName') || argTokens.includes('-rc')) {
         if (state.CashMaster.DefaultCharacterNames[msg.playerid]) {
           delete state.CashMaster.DefaultCharacterNames[msg.playerid];
