@@ -627,12 +627,17 @@ on('ready', () => {
       // Display the CashMaster Menu
       if (argTokens.includes('-menu') || argTokens.includes('-toolbar') || argTokens.includes('-tool')) {
         let menuContent = `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<h3>Cash Master</h3><hr>`
-          + '<h4>Universal Commands</h4>[Toolbar](!cm -tool)'
+          + '<h4>Universal Commands</h4>'
+            + '<br><b>Tools</b>'
+              + '<br>[Toolbar](!cm -tool)'
             + '<br>[Status](!cm -status)'
+            + '<br><b>Operations</b>'
             + `<br>[Transfer to PC](!cm -transfer &#34;?{Recipient${getRecipientOptions()}}&#34; ?{Currency to Transfer})`
             + '<br>[Transfer to NPC](!cm -giveNPC &#34;?{List recipient name and reason}&#34; ?{Currency to Transfer})'
             + `<br>[Invoice Player](!cm -invoice &#34;?{Invoicee${getRecipientOptions()}}&#34; ?{Currency to Request})`
-            + '<br>[Set Default Character](!cm -sc ?{Will you set a new default character|Yes})';
+            + '<br><b>Utilities</b>'
+              + '<br>[Set Default Character](!cm -sc ?{Will you set a new default character|Yes})'
+              + '<br>[Remove Default Character](!cm -rc ?{Will you remove your default character|Yes})';
         if (playerIsGM(msg.playerid)) {
           menuContent = `${menuContent
           }<h4>GM-Only Commands</h4>`
@@ -675,15 +680,21 @@ on('ready', () => {
       // From this point forward, there must at minimum be a Subject (possibly targets as well).
       const parsedSubcommand = parseSubcommand(msg, subcommand, argTokens);
       if (parsedSubcommand === null) {
+        log('Invalid Input.  Validate that a subject is provided and input is not malformed.');
+        sendChat(scname, `/w gm **ERROR:** Invalid Input.  Validate that a subject is provided and input is not malformed.  In response to ${msg.who}'s command ${subcommand}`);
         return;
       }
       const subjects = parsedSubcommand.Subjects;
       const targets = parsedSubcommand.Targets;
       if (subjects === null) {
         log('Invalid Input (null subjects).  Aborting.');
+        sendChat(scname, `/w gm **ERROR:** No subject provided by ${msg.who} in command ${subcommand}`);
+        return;
       }
       if (subjects.length === 0) {
         log('Invalid Input (no subjects).  Aborting.');
+        sendChat(scname, `/w gm **ERROR:** No subject provided by ${msg.who} in command ${subcommand}.`);
+        return;
       }
 
       // Coin Transfer between players
@@ -1005,33 +1016,45 @@ on('ready', () => {
           }
 
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subjectOutput}}}`);
-          sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subjectOutput}}}`);
           sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subjectOutput}}}`);
         });
         return;
       }
 
       // Set the default character for a given player
-      if (argTokens.includes('-setdefaultCharacterName') || argTokens.includes('-sc')) {
+      if (argTokens.includes('-setDefaultCharacterName') || argTokens.includes('-sc')) {
         let setNewCharacter = false;
-        const pcToken = msg.selected[0];
-        const token = getObj('graphic', pcToken._id); // eslint-disable-line no-underscore-dangle
-        if (token) {
-          const pc = getObj('character', token.get('represents'));
-          if (pc) {
-            pcName = getAttrByName(pc.id, 'character_name');
-            if (pcName) {
-              const mapLog = `Mapping Speaker ${msg.playerid} to PC ${pcName}`;
-              log(mapLog);
-              state.CashMaster.DefaultCharacterNames[msg.playerid] = pcName;
-              sendChat(scname, `/w gm ${mapLog}`);
-              sendChat(scname, `/w ${msg.who} Updated Default Character to ${pcName}`);
-              setNewCharacter = true;
+        if (msg.selected) {
+          const pcToken = msg.selected[0];
+          const token = getObj('graphic', pcToken._id); // eslint-disable-line no-underscore-dangle
+          if (token) {
+            const pc = getObj('character', token.get('represents'));
+            if (pc) {
+              pcName = getAttrByName(pc.id, 'character_name');
+              if (pcName) {
+                const mapLog = `Mapping Speaker ${msg.playerid} to PC ${pcName}`;
+                log(mapLog);
+                state.CashMaster.DefaultCharacterNames[msg.playerid] = pcName;
+                sendChat(scname, `/w gm ${mapLog}`);
+                sendChat(scname, `/w ${msg.who} Updated Default Character to ${pcName}`);
+                setNewCharacter = true;
+              }
             }
           }
         }
         if (!setNewCharacter) {
           sendChat(scname, `/w ${msg.who} **ERROR:** You did not have a named character token selected.`);
+        }
+      }
+
+      // Set the default character for a given player
+      if (argTokens.includes('-removeDefaultCharacterName') || argTokens.includes('-rc')) {
+        if (state.CashMaster.DefaultCharacterNames[msg.playerid]) {
+          delete state.CashMaster.DefaultCharacterNames[msg.playerid];
+          sendChat(scname, `/w gm Erased Default Character for ${msg.who}`);
+          sendChat(scname, `/w ${msg.who} Erased Default Character`);
+        } else {
+          sendChat(scname, `/w ${msg.who} You do not have a default character assigned.`);
         }
       }
 
