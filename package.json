@@ -1,9 +1,12 @@
 {
   "name": "roll20-cashmaster",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Roll20 Cashmaster script",
   "main": "CashMaster.js",
-  "dependencies": {},
+  "dependencies": {
+    "gulp": "^3.9.1",
+    "lodash": "^4.17.10"
+  },
   "devDependencies": {
     "babel-cli": "^6.26.0",
     "babel-core": "^6.26.0",
@@ -15,14 +18,14 @@
     "eslint-plugin-import": "^2.8.0",
     "eslint-plugin-jsx-a11y": "^6.0.3",
     "eslint-plugin-react": "^7.5.1",
-    "gulp": "^3.9.1",
     "gulp-babel": "^7.0.0",
     "gulp-bump": "^3.0.0",
     "gulp-eslint": "^4.0.1",
     "gulp-file-insert": "^1.0.3",
     "gulp-jsonlint": "^1.2.1",
     "gulp-markdown": "^2.0.1",
-    "gulp-string-replace": "^1.0.0"
+    "gulp-string-replace": "^1.0.0",
+    "gulp-yarn": "^2.0.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

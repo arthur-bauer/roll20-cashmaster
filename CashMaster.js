@@ -555,7 +555,7 @@ on('ready', () => {
         populateCoinContents(subcommand);
       }
     } catch (e) {
-      sendChat(scname, `/w ${msg.who} **ERROR:** ${e}`);
+      sendChat(scname, `/w "${msg.who}" **ERROR:** ${e}`);
       sendChat(scname, `/w gm **ERROR:** ${msg.who} received: ${e}`);
       return null;
     }
@@ -569,7 +569,7 @@ on('ready', () => {
   };
 
   const printTransactionHistory = (sender) => {
-    let historyContent = `/w ${sender} &{template:${rt[0]}} {{${rt[1]}=<h3>Cash Master</h3><hr>`;
+    let historyContent = `/w "${sender}" &{template:${rt[0]}} {{${rt[1]}=<h3>Cash Master</h3><hr>`;
     state.CashMaster.TransactionHistory.forEach((transaction) => {
       let playerEffects = '<ul>';
       const operationList = [];
@@ -607,7 +607,7 @@ on('ready', () => {
     const subcommands = msg.content.split(';');
     if (msg.type !== 'api') return;
     if (msg.content.startsWith('!cm') !== true) return;
-
+    msg.who = msg.who.replace(" (GM)",""); // remove the (GM) at the end of the GM name
     // Initialize State object
     initCM();
 
@@ -626,7 +626,7 @@ on('ready', () => {
 
       // Display the CashMaster Menu
       if (argTokens.includes('-menu') || argTokens.includes('-toolbar') || argTokens.includes('-tool')) {
-        let menuContent = `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<h3>Cash Master</h3><hr>`
+        let menuContent = `/w "${msg.who}" &{template:${rt[0]}} {{${rt[1]}=<h3>Cash Master</h3><hr>`
           + '<h4>Universal Commands</h4>'
             + '<br><b>Tools</b>'
               + '<br>[Toolbar](!cm -tool)'
@@ -823,8 +823,8 @@ on('ready', () => {
               recordTransaction('Transfer to PC', msg.who, [subjectEffect, targetEffect]);
             }
             sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}>${targetName}</b><hr>${transactionOutput}${subjectOutput}${targetOutput}}}`);
-            sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName} > ${targetName}</b><hr>${output}${transactionOutput}${subjectOutput}}}`);
-            sendChat(scname, `/w ${targetName} &{template:${rt[0]}} {{${rt[1]}=<b>Recipient Transfer Report</b><br>${subjectName} > ${targetName}</b><hr>${output}${transactionOutput}${targetOutput}}}`);
+            sendChat(scname, `/w "${msg.who}" &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName} > ${targetName}</b><hr>${output}${transactionOutput}${subjectOutput}}}`);
+            sendChat(scname, `/w "${targetName}" &{template:${rt[0]}} {{${rt[1]}=<b>Recipient Transfer Report</b><br>${subjectName} > ${targetName}</b><hr>${output}${transactionOutput}${targetOutput}}}`);
           });
         });
         return;
@@ -910,8 +910,8 @@ on('ready', () => {
             targetOutput += `<br> ${tsp}sp`;
             targetOutput += `<br> ${tcp}cp`;
             sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Invoice Report</b><br>${subjectName}>${targetName}</b><hr>${transactionOutput}${targetOutput}}}`);
-            sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Invoice Sent to ${targetName}</b><hr>${transactionOutput}}}`);
-            sendChat(scname, `/w ${targetName} &{template:${rt[0]}} {{${rt[1]}=<b>Invoice Received from ${subjectName}</b><hr>${transactionOutput}${targetOutput}<hr>[Pay](!cm -transfer -S &#34;${targetName}&#34; -T &#34;${subjectName}&#34; -C &#34;${invoiceAmount}&#34;)}}`);
+            sendChat(scname, `/w "${msg.who}" &{template:${rt[0]}} {{${rt[1]}=<b>Invoice Sent to ${targetName}</b><hr>${transactionOutput}}}`);
+            sendChat(scname, `/w "${targetName}" &{template:${rt[0]}} {{${rt[1]}=<b>Invoice Received from ${subjectName}</b><hr>${transactionOutput}${targetOutput}<hr>[Pay](!cm -transfer -S &#34;${targetName}&#34; -T &#34;${subjectName}&#34; -C &#34;${invoiceAmount}&#34;)}}`);
           });
         });
         return;
@@ -921,7 +921,7 @@ on('ready', () => {
       if (argTokens.includes('-status') || argTokens.includes('-ss')) {
         subjects.forEach((subject) => {
           const coinStatus = playerCoinStatus(subject);
-          sendChat(scname, `/w ${msg.who} &{template:${rt[0]}} {{${rt[1]}=<b>Coin Purse Status</b></b><hr>${coinStatus[0]}}}`);
+          sendChat(scname, `/w "${msg.who}" &{template:${rt[0]}} {{${rt[1]}=<b>Coin Purse Status</b></b><hr>${coinStatus[0]}}}`);
         });
         return;
       }
@@ -1016,7 +1016,7 @@ on('ready', () => {
           }
 
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subjectOutput}}}`);
-          sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subjectOutput}}}`);
+          sendChat(scname, `/w "${subjectName}" &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subjectOutput}}}`);
         });
         return;
       }
@@ -1036,14 +1036,14 @@ on('ready', () => {
                 log(mapLog);
                 state.CashMaster.DefaultCharacterNames[msg.playerid] = pcName;
                 sendChat(scname, `/w gm ${mapLog}`);
-                sendChat(scname, `/w ${msg.who} Updated Default Character to ${pcName}`);
+                sendChat(scname, `/w "${msg.who}" Updated Default Character to ${pcName}`);
                 setNewCharacter = true;
               }
             }
           }
         }
         if (!setNewCharacter) {
-          sendChat(scname, `/w ${msg.who} **ERROR:** You did not have a named character token selected.`);
+          sendChat(scname, `/w "${msg.who}" **ERROR:** You did not have a named character token selected.`);
         }
       }
 
@@ -1052,9 +1052,9 @@ on('ready', () => {
         if (state.CashMaster.DefaultCharacterNames[msg.playerid]) {
           delete state.CashMaster.DefaultCharacterNames[msg.playerid];
           sendChat(scname, `/w gm Erased Default Character for ${msg.who}`);
-          sendChat(scname, `/w ${msg.who} Erased Default Character`);
+          sendChat(scname, `/w "${msg.who}" Erased Default Character`);
         } else {
-          sendChat(scname, `/w ${msg.who} You do not have a default character assigned.`);
+          sendChat(scname, `/w "${msg.who}" You do not have a default character assigned.`);
         }
       }
 
@@ -1247,7 +1247,7 @@ on('ready', () => {
               subjectFinal[4] += parseFloat(cpa[3]);
             }
             transactionEffects.push(getPlayerEffect(subjectName, getDelta(subjectFinal, subjectInitial)));
-            sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>GM has Disbursed Coin</b><hr>${output}}}`);
+            sendChat(scname, `/w "${subjectName}" &{template:${rt[0]}} {{${rt[1]}=<b>GM has Disbursed Coin</b><hr>${output}}}`);
           });
 
           const type = msg.content.includes('-revert ') ? 'Revert Transaction' : 'Add';
@@ -1293,7 +1293,7 @@ on('ready', () => {
 
               transactionEffects.push(getPlayerEffect(subjectName, getDelta(targetFinal, targetInitial)));
             }
-            sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>GM has Removed Coin</b><hr>${output}}}`);
+            sendChat(scname, `/w "${subjectName}" &{template:${rt[0]}} {{${rt[1]}=<b>GM has Removed Coin</b><hr>${output}}}`);
           });
           recordTransaction('Subtract', msg.who, transactionEffects);
           const s = msg.selected.length > 1 ? 's' : '';
@@ -1373,7 +1373,7 @@ on('ready', () => {
                 setattr(character.id, 'cp', targetFinal[4]);
                 output += `<br> ${cpt}cp`;
               }
-              sendChat(scname, `/w ${name} &{template:${rt[0]}} {{${rt[1]}=<b>Distributing Loot</b><hr>${output}}}`);
+              sendChat(scname, `/w "${name}" &{template:${rt[0]}} {{${rt[1]}=<b>Distributing Loot</b><hr>${output}}}`);
               transactionEffects.push(getPlayerEffect(name, getDelta(targetFinal, targetInitial)));
             }
           });
