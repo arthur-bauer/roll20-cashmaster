@@ -697,6 +697,19 @@ on('ready', () => {
         return;
       }
 
+      if (argTokens.includes('-shop')) {
+        subjects.forEach((subject) => {
+          const subjectName = getAttrByName(subject.id, 'character_name');
+          const notes = getAttrByName(subject, 'gmnotes');
+          subject.get('gmnotes', (text) => {
+            log(`GM Notes: ${text}`);
+            sendChat(scname, `/w "${msg.playerid}" ${text}`);
+
+          });
+          return;
+        });
+      }
+
       // Coin Transfer between players
       if (argTokens.includes('-transfer') || argTokens.includes('-t')) {
         subjects.forEach((subject) => {
