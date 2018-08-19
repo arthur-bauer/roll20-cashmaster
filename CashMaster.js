@@ -376,6 +376,7 @@ on('ready', () => {
 
   const scname = 'CashMaster'; // script name
   let selectedsheet = 'OGL'; // You can set this to "5E-Shaped" if you're using the Shaped sheet
+  const gmNotesParserHeaderString = '<h1>GM Notes Parser</h1>';
 
   // detecting useroptions from one-click
   if (globalconfig && globalconfig.cashmaster && globalconfig.cashmaster.useroptions) {
@@ -607,8 +608,18 @@ on('ready', () => {
     return source.split(search).join(replacement);
   };
 
-  const lineBreaksToParagraphs = (source) => {
-    return `<p>${replace(source,'\n','</p><p>')}</p>`;
+  const formatShopData = (source) => {
+    replace(source,'\n','</p><p>')
+    let sourceLines = source.split('\n');
+    let outputLines = [];
+    sourceLines.forEach((line) => {
+      let spaceCount = line.search(/\S/);
+      let tabCount = spaceCount/4;
+      let trimmedLine = line.substr(spaceCount);
+      let outputLine = `<p style=\"margin-left: ${tabCount*25}px\">${trimmedLine}</p>`;
+      outputLines.push(outputLine);
+    });
+    return `${gmNotesParserHeaderString}${outputLines.join('')}`;
   };
 
   on('chat:message', (msg) => {
@@ -711,10 +722,8 @@ on('ready', () => {
           const notes = getAttrByName(subject, 'gmnotes');
           var character = getObj("character", subject.id);
           subject.get('gmnotes', (text) => {
-            log(`Test: ${JSON.stringify(subject)}`);
-            log(`GM Notes: ${text}`);
-            sendChat(scname, `${text}`);
-            let gmNoteParser =  {
+            log(`Existing Notes: ${text}`);
+            let gmNoteParserDemo =  {
               CashMaster:  {
                 Shop:  {
                   Name: "Fine Wands",
@@ -725,22 +734,25 @@ on('ready', () => {
                      {
                       Name: "Mageweave Robe",
                       Price: "669gp",
-                      Description: "A white robe enchanted with Mage Armor, Prestidigitation, and Mending"
+                      Description: "A white robe enchanted with Mage Armor, Prestidigitation, and Mending",
+                      Quantity: 3
                     },
                      {
                       Name: "Healing Potion",
                       Price: "33gp",
-                      Description: "A standard healing potion for 2d4+2 health."
+                      Description: "A standard healing potion for 2d4+2 health.",
+                      Quantity: 999
                     }
                   ]
                 }
               }
             };
-            log(gmNoteParser);
-            let gmNoteString = JSON.stringify(gmNoteParser,null,4);
+            // load real thing
+
+            let gmNoteString = JSON.stringify(gmNoteParserDemo,null,4);
             log(gmNoteString);
-            let formattedOutput = lineBreaksToParagraphs(gmNoteString);
-            log(formattedOutput);
+            let formattedOutput = formatShopData(gmNoteString);
+            log(`New Notes: ${formattedOutput}`);
             subject.set('gmnotes', formattedOutput);
           });
           return;
