@@ -603,6 +603,14 @@ on('ready', () => {
     sendChat(scname, historyContent);
   };
 
+  const replace = (source, search, replacement) => {
+    return source.split(search).join(replacement);
+  };
+
+  const lineBreaksToParagraphs = (source) => {
+    return `<p>${replace(source,'\n','</p><p>')}</p>`;
+  };
+
   on('chat:message', (msg) => {
     const subcommands = msg.content.split(';');
     if (msg.type !== 'api') return;
@@ -701,10 +709,39 @@ on('ready', () => {
         subjects.forEach((subject) => {
           const subjectName = getAttrByName(subject.id, 'character_name');
           const notes = getAttrByName(subject, 'gmnotes');
+          var character = getObj("character", subject.id);
           subject.get('gmnotes', (text) => {
+            log(`Test: ${JSON.stringify(subject)}`);
             log(`GM Notes: ${text}`);
-            sendChat(scname, `/w "${msg.playerid}" ${text}`);
-
+            sendChat(scname, `${text}`);
+            let gmNoteParser =  {
+              CashMaster:  {
+                Shop:  {
+                  Name: "Fine Wands",
+                  Location: "On Feygrove Road, in an arcane district of well-lit avenues and alchemical forges. The street outside is lined with a wrought-iron fence.",
+                  Description: "The shop is a single storey stone-walled building, with a reinforced wooden door. The surrounding yard is filled with scorch marks and craters.",
+                  Shopkeeper: "The shopkeeper is a young male half-elf named Finy Wete. He will purchase monster teeth for a silver coin each.  He comments on how used to buy the baby teeth of the urchins for a copper, but they're not around anymore.  He sees them more often over by Oils and Elixers.  He's happy to Dye items on request.",
+                  Items: [
+                     {
+                      Name: "Mageweave Robe",
+                      Price: "669gp",
+                      Description: "A white robe enchanted with Mage Armor, Prestidigitation, and Mending"
+                    },
+                     {
+                      Name: "Healing Potion",
+                      Price: "33gp",
+                      Description: "A standard healing potion for 2d4+2 health."
+                    }
+                  ]
+                }
+              }
+            };
+            log(gmNoteParser);
+            let gmNoteString = JSON.stringify(gmNoteParser,null,4);
+            log(gmNoteString);
+            let formattedOutput = lineBreaksToParagraphs(gmNoteString);
+            log(formattedOutput);
+            subject.set('gmnotes', formattedOutput);
           });
           return;
         });
