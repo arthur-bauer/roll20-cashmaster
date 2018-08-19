@@ -384,8 +384,6 @@ on('ready', () => {
   let rt = '';
   if (selectedsheet === 'OGL') {
     rt = ['desc', 'desc'];
-  } else if (selectedsheet === '5E-Shaped') {
-    rt = ['5e-shaped', 'text'];
   } else {
     rt = ['default', `name=${scname} }}{{note`];
   }
