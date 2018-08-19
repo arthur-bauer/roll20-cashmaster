@@ -376,7 +376,7 @@ on('ready', () => {
 
   const scname = 'CashMaster'; // script name
   let selectedsheet = 'OGL'; // You can set this to "5E-Shaped" if you're using the Shaped sheet
-  const gmNotesParserHeaderString = '<h1>GM Notes Parser</h1>';
+  const gmNotesHeaderString = '<h1>GM Notes Parser</h1>';
 
   // detecting useroptions from one-click
   if (globalconfig && globalconfig.cashmaster && globalconfig.cashmaster.useroptions) {
@@ -604,22 +604,31 @@ on('ready', () => {
     sendChat(scname, historyContent);
   };
 
-  const replace = (source, search, replacement) => {
-    return source.split(search).join(replacement);
+  const parseGmNotes = (source) => {
+    const parseableNotes = source.substr(source.indexOf(gmNotesHeaderString) + gmNotesHeaderString.length);
+    const lines = parseableNotes.split('</p>');
+    const datalines = [];
+    lines.forEach((line) => {
+      const dataline = line.substr(line.indexOf('>') + 1);
+      datalines.push(dataline);
+    });
+    const data = datalines.join('');
+    log(`Parsed Data String: ${data}`);
+    const notesObj = JSON.parse(data);
+    return notesObj;
   };
 
   const formatShopData = (source) => {
-    replace(source,'\n','</p><p>')
-    let sourceLines = source.split('\n');
-    let outputLines = [];
+    const sourceLines = source.split('\n');
+    const outputLines = [];
     sourceLines.forEach((line) => {
-      let spaceCount = line.search(/\S/);
-      let tabCount = spaceCount/4;
-      let trimmedLine = line.substr(spaceCount);
-      let outputLine = `<p style=\"margin-left: ${tabCount*25}px\">${trimmedLine}</p>`;
+      const spaceCount = line.search(/\S/);
+      const tabCount = spaceCount / 4;
+      const trimmedLine = line.substr(spaceCount);
+      const outputLine = `<p style="margin-left: ${tabCount * 25}px">${trimmedLine}</p>`;
       outputLines.push(outputLine);
     });
-    return `${gmNotesParserHeaderString}${outputLines.join('')}`;
+    return `${gmNotesHeaderString}${outputLines.join('')}`;
   };
 
   on('chat:message', (msg) => {
@@ -716,47 +725,89 @@ on('ready', () => {
         return;
       }
 
-      if (argTokens.includes('-shop')) {
+      if (argTokens.includes('-viewShop') || argTokens.includes('-vs')) {
         subjects.forEach((subject) => {
-          const subjectName = getAttrByName(subject.id, 'character_name');
-          const notes = getAttrByName(subject, 'gmnotes');
-          var character = getObj("character", subject.id);
-          subject.get('gmnotes', (text) => {
-            log(`Existing Notes: ${text}`);
-            let gmNoteParserDemo =  {
-              CashMaster:  {
-                Shop:  {
-                  Name: "Fine Wands",
-                  Location: "On Feygrove Road, in an arcane district of well-lit avenues and alchemical forges. The street outside is lined with a wrought-iron fence.",
-                  Description: "The shop is a single storey stone-walled building, with a reinforced wooden door. The surrounding yard is filled with scorch marks and craters.",
-                  Shopkeeper: "The shopkeeper is a young male half-elf named Finy Wete. He will purchase monster teeth for a silver coin each.  He comments on how used to buy the baby teeth of the urchins for a copper, but they're not around anymore.  He sees them more often over by Oils and Elixers.  He's happy to Dye items on request.",
-                  Items: [
-                     {
-                      Name: "Mageweave Robe",
-                      Price: "669gp",
-                      Description: "A white robe enchanted with Mage Armor, Prestidigitation, and Mending",
-                      Quantity: 3
-                    },
-                     {
-                      Name: "Healing Potion",
-                      Price: "33gp",
-                      Description: "A standard healing potion for 2d4+2 health.",
-                      Quantity: 999
-                    }
-                  ]
+          subject.get('gmnotes', (source) => {
+            log(`Existing Notes: ${source}`);
+
+            // If you haven't selected anything, source will literally be the string 'null'
+            if(source && source !== 'null') {
+              // DEBUG CODE
+              const gmNoteParserDemo = {
+                CashMaster: {
+                  Shop: {
+                    Name: 'Fine Wands',
+                    Location: 'On Feygrove Road, in an arcane district of well-lit avenues and alchemical forges. The street outside is lined with a wrought-iron fence.',
+                    Description: 'The shop is a single storey stone-walled building, with a reinforced wooden door. The surrounding yard is filled with scorch marks and craters.',
+                    Shopkeeper: 'The shopkeeper is a young male half-elf named Finy Wete.  He\'s happy to Dye items on request.',
+                    Items: [
+                      {
+                        Name: 'Mageweave Robe',
+                        Price: '669gp',
+                        Description: 'A white robe enchanted with Mage Armor, Prestidigitation, and Mending',
+                        Quantity: 3,
+                      },
+                      {
+                        Name: 'Healing Potion',
+                        Price: '33gp',
+                        Description: 'A standard healing potion for 2d4+2 health.',
+                        Quantity: 999,
+                      },
+                    ],
+                  },
+                },
+              };
+              const gmNoteStringDemo = JSON.stringify(gmNoteParserDemo, null, 4);
+
+              // Parse the GM Notes
+              const gmNotes = parseGmNotes(source);
+              log(gmNotes);
+              log(`Parsed Notes: ${JSON.stringify(gmNotes)}`);
+
+              // Display Shop to User
+              if (gmNotes.CashMaster) {
+                log('CM Exists');
+                if (gmNotes.CashMaster.Shop) {
+                  log('Shop Exists');
+                  const shop = gmNotes.CashMaster.Shop;
+                  let shopContent = `&{template:${rt[0]}} {{${rt[1]}=<h3>${shop.Name}</h3><hr><div align="left" style="margin-left: 7px">`
+                    + `<br><b>Location:</b> ${shop.Location}`
+                    + `<br><b>Description:</b> ${shop.Description}`
+                    + `<br><b>Shopkeeper:</b> ${shop.Shopkeeper}`;
+                  log(`Shop Summary: ${shopContent}`);
+                  if (shop.Items) {
+                    log('Items exist');
+                    shopContent += '<br><h4>Wares</h4>';
+                    shop.Items.forEach((item) => {
+                      shopContent += `<br><b>${item.Name} x${item.Quantity}</b>`
+                        + `<br>${item.Price}`
+                        + `<br>${item.Description}`
+                        + `<br>[Buy](!cm -giveNPC &#34;Purchase ${item.Name} from ${shop.Name}&#34; ${item.Price})<br>`;
+                    });
+                    log(`Shop with Items: ${shopContent}`);
+                  }
+                  shopContent += '</div>}}';
+                  log(`Shop Content: ${shopContent}`);
+                  sendChat(scname, shopContent);
+                  return;
                 }
               }
-            };
-            // load real thing
+              sendChat(scname, `/w ${msg.who} Unable to find Shop objects.`);
+            }
+            else {
+              sendChat(scname, `/w ${msg.who} Please select a valid shop.`);
+            }
+            
 
-            let gmNoteString = JSON.stringify(gmNoteParserDemo,null,4);
-            log(gmNoteString);
-            let formattedOutput = formatShopData(gmNoteString);
-            log(`New Notes: ${formattedOutput}`);
-            subject.set('gmnotes', formattedOutput);
+            // Write to notes
+            /*const gmNoteString = JSON.stringify(gmNotes, null, 4);
+            const userNotes = source.substr(0, source.indexOf(gmNotesHeaderString));
+            const formattedOutput = formatShopData(gmNoteString);
+            const gmNoteOutput = `${userNotes}${formattedOutput}`;
+            subject.set('gmnotes', gmNoteOutput);*/
           });
-          return;
         });
+        return;
       }
 
       // Coin Transfer between players
