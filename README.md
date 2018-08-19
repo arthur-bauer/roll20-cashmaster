@@ -1,6 +1,6 @@
 # CashMaster
 
-A currency management script for the D&D 5e OGL and 5e Shaped sheets on Roll20.net.
+A currency management script for the D&D 5e OGL sheets on Roll20.net.
 
 Please use `!cm` for inline help and examples.
 
@@ -15,11 +15,10 @@ Please use `!cm` for inline help and examples.
 
 ### GM Setup
 
-1. Set the character sheet setting (`OGL`, `5E-Shaped`, or `other`).
-2. Create a macro bar button for the command `!cm -menu`
-3. Press the CashMaster button you just created.  It will display a menu in the chat log.
-4. Select the character tokens of ALL party members and companion NPCs.  Do not select pets or mounts unless the party considers them an equal member of the party (and thus should be a valid recipient for `-loot` and similar commands).  Such creatures must have full character sheets with currency fields.
-5. Press the chat UI button titled Set Party to Selected.
+1. Create a macro bar button for the command `!cm -menu`
+2. Press the CashMaster button you just created.  It will display a menu in the chat log.
+3. Select the character tokens of ALL party members and companion NPCs.  Do not select pets or mounts unless the party considers them an equal member of the party (and thus should be a valid recipient for `-loot` and similar commands).  Such creatures must have full character sheets with currency fields.
+4. Press the chat UI button titled Set Party to Selected.
 
 ## Player Commands
 
