@@ -375,7 +375,7 @@ on('ready', () => {
   */
 
   const scname = 'CashMaster'; // script name
-  let selectedsheet = 'OGL'; // You can set this to "5E-Shaped" if you're using the Shaped sheet
+  let selectedsheet = 'OGL'; 
 
   // detecting useroptions from one-click
   if (globalconfig && globalconfig.cashmaster && globalconfig.cashmaster.useroptions) {
