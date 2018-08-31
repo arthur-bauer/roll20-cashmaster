@@ -435,7 +435,7 @@ on('ready', () => {
     const subjectList = [];
     let targetList = [];
     let currencySpecified = false;
-    const allowStringTarget = argTokens.includes('-dropWithReason') || argTokens.includes('-giveNPC');
+    const allowStringTarget = argTokens.includes('-dropWithReason') || argTokens.includes('-giveNPC') || argTokens.includes('-buy');
 
     // Wrapping in try/catch because of the forEach.  This allows us to easily escape to report errors to the user immediately.
     try {
@@ -605,7 +605,11 @@ on('ready', () => {
   };
 
   const parseGmNotes = (source) => {
-    const parseableNotes = source.substr(source.indexOf(gmNotesHeaderString) + gmNotesHeaderString.length);
+    const headerIndex = source.indexOf(gmNotesHeaderString);
+    if (headerIndex === -1) {
+      return null;
+    }
+    const parseableNotes = source.substr(headerIndex + gmNotesHeaderString.length);
     const lines = parseableNotes.split('</p>');
     const datalines = [];
     lines.forEach((line) => {
@@ -632,9 +636,9 @@ on('ready', () => {
   };
 
   on('chat:message', (msg) => {
-    const subcommands = msg.content.split(';');
     if (msg.type !== 'api') return;
     if (msg.content.startsWith('!cm') !== true) return;
+    const subcommands = msg.content.split(';');
 
     // Initialize State object
     initCM();
@@ -645,6 +649,7 @@ on('ready', () => {
     subcommands.forEach((subcommand) => {
       log(`CM Subcommand: ${subcommand}`);
       const argTokens = subcommand.split(/\s+/);
+      const argTags = subcommand.split(' -');
 
       // Operations that do not require a selection
       if (subcommand === '!cm' || argTokens.includes('-help') || argTokens.includes('-h')) {
@@ -730,15 +735,15 @@ on('ready', () => {
           subject.get('gmnotes', (source) => {
             log(`Existing Notes: ${source}`);
 
-            // If you haven't selected anything, source will literally be the string 'null'
-            if(source && source !== 'null') {
+            // If you haven't selected anything, source will literally be the following string: 'null'
+            if (source && source !== 'null') {
               // DEBUG CODE
               const gmNoteParserDemo = {
                 CashMaster: {
                   Shop: {
                     Name: 'Fine Wands',
                     Location: 'On Feygrove Road, in an arcane district of well-lit avenues and alchemical forges. The street outside is lined with a wrought-iron fence.',
-                    Description: 'The shop is a single storey stone-walled building, with a reinforced wooden door. The surrounding yard is filled with scorch marks and craters.',
+                    Appearance: 'The shop is a single storey stone-walled building, with a reinforced wooden door. The surrounding yard is filled with scorch marks and craters.',
                     Shopkeeper: 'The shopkeeper is a young male half-elf named Finy Wete.  He\'s happy to Dye items on request.',
                     Items: [
                       {
@@ -761,34 +766,51 @@ on('ready', () => {
 
               // Parse the GM Notes
               const gmNotes = parseGmNotes(source);
-              log(gmNotes);
-              log(`Parsed Notes: ${JSON.stringify(gmNotes)}`);
+              if (!gmNotes) {
+                sendChat(scname, '/w gm Target does not possess a GM Notes block to parse.');
+              }
 
-              // Display Shop to User
+              // Display Shop to Users
               if (gmNotes.CashMaster) {
-                log('CM Exists');
+                const shopkeeperName = getAttrByName(subject.id, 'character_name');
                 if (gmNotes.CashMaster.Shop) {
-                  log('Shop Exists');
                   const shop = gmNotes.CashMaster.Shop;
-                  let shopContent = `&{template:${rt[0]}} {{${rt[1]}=<h3>${shop.Name}</h3><hr><div align="left" style="margin-left: 7px">`
-                    + `<br><b>Location:</b> ${shop.Location}`
-                    + `<br><b>Description:</b> ${shop.Description}`
-                    + `<br><b>Shopkeeper:</b> ${shop.Shopkeeper}`;
-                  log(`Shop Summary: ${shopContent}`);
-                  if (shop.Items) {
-                    log('Items exist');
-                    shopContent += '<br><h4>Wares</h4>';
-                    shop.Items.forEach((item) => {
-                      shopContent += `<br><b>${item.Name} x${item.Quantity}</b>`
-                        + `<br>${item.Price}`
-                        + `<br>${item.Description}`
-                        + `<br>[Buy](!cm -giveNPC &#34;Purchase ${item.Name} from ${shop.Name}&#34; ${item.Price})<br>`;
-                    });
-                    log(`Shop with Items: ${shopContent}`);
-                  }
-                  shopContent += '</div>}}';
-                  log(`Shop Content: ${shopContent}`);
-                  sendChat(scname, shopContent);
+
+                  subject.get('_defaulttoken', (tokenJSON) => {
+                    let avatarTag = '';
+                    if (tokenJSON) {
+                      let avatar = JSON.parse(tokenJSON).imgsrc;
+
+                      // strip off the ?#
+                      const urlEnd = avatar.indexOf('?');
+                      if (urlEnd > -1) {
+                        avatar = avatar.substr(0, urlEnd);
+                      }
+                      avatarTag = `<img src="${avatar}" height="48" width="48"> `;
+                    }
+
+                    let shopContent = `&{template:${rt[0]}} {{${rt[1]}=<div align="left" style="margin-left: 7px;margin-right: 7px"><h3>${avatarTag}${shop.Name}</h3><hr>`
+                      + `<br><b>Location:</b> ${shop.Location}`
+                      + `<br><b>Appearance:</b> ${shop.Appearance}`
+                      + `<br><b>Shopkeeper:</b> ${shop.Shopkeeper}`;
+
+                    if (shop.Items) {
+                      shopContent += '<hr><br><h4>Wares</h4>';
+                      shop.Items.forEach((item) => {
+                        shopContent += `<br><b>${item.Name} x${item.Quantity}</b>`
+                          + `<br>${item.Price}`
+                          + `<br>${item.Description}`
+                          + `<br>[Buy](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)<br>`;
+                      });
+                    }
+                    shopContent += '</div>}}';
+                    
+                    if (playerIsGM(msg.playerid)) {
+                      sendChat(shopkeeperName, shopContent);
+                    } else {
+                      sendChat(shopkeeperName, `/w "${msg.who}" ${shopContent}`);
+                    }
+                  });
                   return;
                 }
               }
@@ -797,14 +819,6 @@ on('ready', () => {
             else {
               sendChat(scname, `/w ${msg.who} Please select a valid shop.`);
             }
-            
-
-            // Write to notes
-            /*const gmNoteString = JSON.stringify(gmNotes, null, 4);
-            const userNotes = source.substr(0, source.indexOf(gmNotesHeaderString));
-            const formattedOutput = formatShopData(gmNoteString);
-            const gmNoteOutput = `${userNotes}${formattedOutput}`;
-            subject.set('gmnotes', gmNoteOutput);*/
           });
         });
         return;
@@ -1040,7 +1054,7 @@ on('ready', () => {
       }
 
       // Drop Currency or Give it to an NPC
-      if (argTokens.includes('-dropWithReason') || argTokens.includes('-giveNPC')) {
+      if (argTokens.includes('-dropWithReason') || argTokens.includes('-giveNPC') || argTokens.includes('-buy')) {
         subjects.forEach((subject) => {
           output = '';
           let transactionOutput = '';
@@ -1111,21 +1125,87 @@ on('ready', () => {
           if (subjectAccount === 'ERROR: Not enough cash.') {
             subjectOutput += 'not enough cash!';
           } else {
-            const subjectEffect = getPlayerEffect(subjectName, getDelta(subjectAccount, subjectInitial));
+            if (argTokens.includes('-buy')) {
+              let purchaseFailed = true;
+              if (targets.length == 2) {
+                const shopkeeperName = targets[1];
+                log(`Attempting to purchase ${reason} from ${shopkeeperName}`);
+                const shopkeeper = getCharByAny(shopkeeperName);
+                const itemName = reason;
+                if (shopkeeper) {
+                  shopkeeper.get('gmnotes', (source) => {
+                    if (source) {
+                      const gmNotes = parseGmNotes(source);
+                      if (gmNotes) {
+                        if (gmNotes.CashMaster) {
+                          if (gmNotes.CashMaster.Shop) {
+                            const shop = gmNotes.CashMaster.Shop;
+                            const item = shop.Items.find(p => p.Name === itemName);
+                            if (item) {
+                              if (item.Quantity > 0) {
+                                log(`Valid Buy Target.  Purchaser: ${subjectName}, Seller: ${shopkeeperName} of ${shop.Name}x${item.Quantity}, Item: ${itemName}`);
+                                item.Quantity--;
+                                purchaseFailed = false;
+    
+                                // Prepare updated notes
+                                const gmNoteString = JSON.stringify(gmNotes, null, 4);
+                                const userNotes = source.substr(0, source.indexOf(gmNotesHeaderString));
+                                log(`User Notes: ${userNotes}`);
+                                const formattedOutput = formatShopData(gmNoteString);
+                                const gmNoteOutput = `${userNotes}${formattedOutput}`;
 
-            // Update subject account and update output
-            setattr(subject.id, 'pp', parseFloat(subjectAccount[0]));
-            setattr(subject.id, 'gp', parseFloat(subjectAccount[1]));
-            setattr(subject.id, 'ep', parseFloat(subjectAccount[2]));
-            setattr(subject.id, 'sp', parseFloat(subjectAccount[3]));
-            setattr(subject.id, 'cp', parseFloat(subjectAccount[4]));
-            subjectOutput += `<br> ${subjectAccount[0]}pp`;
-            subjectOutput += `<br> ${subjectAccount[1]}gp`;
-            subjectOutput += `<br> ${subjectAccount[2]}ep`;
-            subjectOutput += `<br> ${subjectAccount[3]}sp`;
-            subjectOutput += `<br> ${subjectAccount[4]}cp`;
+                                // Schedule write
+                                setTimeout(() =>
+                                {
+                                  shopkeeper.set('gmnotes', gmNoteOutput);
+                                },0);
 
-            recordTransaction('Transfer to NPC', msg.who, [subjectEffect]);
+                                // Update player inventory and record transaction
+                                const subjectEffect = getPlayerEffect(subjectName, getDelta(subjectAccount, subjectInitial));
+                    
+                                // Update subject account and update output
+                                setattr(subject.id, 'pp', parseFloat(subjectAccount[0]));
+                                setattr(subject.id, 'gp', parseFloat(subjectAccount[1]));
+                                setattr(subject.id, 'ep', parseFloat(subjectAccount[2]));
+                                setattr(subject.id, 'sp', parseFloat(subjectAccount[3]));
+                                setattr(subject.id, 'cp', parseFloat(subjectAccount[4]));
+                                subjectOutput += `<br> ${subjectAccount[0]}pp`;
+                                subjectOutput += `<br> ${subjectAccount[1]}gp`;
+                                subjectOutput += `<br> ${subjectAccount[2]}ep`;
+                                subjectOutput += `<br> ${subjectAccount[3]}sp`;
+                                subjectOutput += `<br> ${subjectAccount[4]}cp`;
+                    
+                                recordTransaction('Transfer to NPC', msg.who, [subjectEffect]);
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }                    
+                  });
+                }
+              }
+              if (purchaseFailed) {
+                subjectOutput += 'Invalid Purchase Command.';
+              }
+            }
+            else {
+              const subjectEffect = getPlayerEffect(subjectName, getDelta(subjectAccount, subjectInitial));
+
+              // Update subject account and update output
+              setattr(subject.id, 'pp', parseFloat(subjectAccount[0]));
+              setattr(subject.id, 'gp', parseFloat(subjectAccount[1]));
+              setattr(subject.id, 'ep', parseFloat(subjectAccount[2]));
+              setattr(subject.id, 'sp', parseFloat(subjectAccount[3]));
+              setattr(subject.id, 'cp', parseFloat(subjectAccount[4]));
+              subjectOutput += `<br> ${subjectAccount[0]}pp`;
+              subjectOutput += `<br> ${subjectAccount[1]}gp`;
+              subjectOutput += `<br> ${subjectAccount[2]}ep`;
+              subjectOutput += `<br> ${subjectAccount[3]}sp`;
+              subjectOutput += `<br> ${subjectAccount[4]}cp`;
+  
+              recordTransaction('Transfer to NPC', msg.who, [subjectEffect]);
+            }
           }
 
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subjectOutput}}}`);
