@@ -642,7 +642,7 @@ on('ready', () => {
       subjectInitial[1],
       subjectInitial[2],
       subjectInitial[3],
-      subjectInitial[4]
+      subjectInitial[4],
     ];
 
     if (ppa !== null) subjectAccount = changeMoney(subjectAccount, ppa[2]);
@@ -1156,23 +1156,18 @@ on('ready', () => {
                               populateCoinContents(` ${item.Price}`);
                               
                               if (ppa !== null) {
-                                const val = parseFloat(ppa[3]);
                                 transactionOutput += `<br> ${ppa[2]}`;
                               }
                               if (gpa !== null) {
-                                const val = parseFloat(gpa[3]);
                                 transactionOutput += `<br> ${gpa[2]}`;
                               }
                               if (epa !== null) {
-                                const val = parseFloat(epa[3]);
                                 transactionOutput += `<br> ${epa[2]}`;
                               }
                               if (spa !== null) {
-                                const val = parseFloat(spa[3]);
                                 transactionOutput += `<br> ${spa[2]}`;
                               }
                               if (cpa !== null) {
-                                const val = parseFloat(cpa[3]);
                                 transactionOutput += `<br> ${cpa[2]}`;
                               }
 
