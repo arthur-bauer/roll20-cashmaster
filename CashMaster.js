@@ -122,6 +122,7 @@ const getattr = (cid, att) => {
   }
   return '';
 };
+
 const setattr = (charId, attrName, val) => {
   //! setattr
   const attr = findObjs({
@@ -793,12 +794,12 @@ on('ready', () => {
       
       return existing;
     },
-    alterItemCount: (subject, item, rowId, quantity) => {
+    alterItemCount: (subject, item, rowId, modifierQuantity) => {
       let countAttr = oglItem.getItemAttr(subject, rowId, oglItem.COUNT_SUFFIX);
       log("Count Attr: " + JSON.stringify(countAttr));
       let oldCountStr = countAttr ? countAttr.get('current') : '0';
       log("Old: " + oldCountStr);
-      let newCount = parseInt(oldCountStr) + quantity;
+      let newCount = parseInt(oldCountStr) + modifierQuantity;
       log("New: " + newCount)
       countAttr.setWithWorker({current: newCount + ''});
     },
@@ -824,8 +825,6 @@ on('ready', () => {
       oglItem.createItemAttr(subject.id, newRowId, oglItem.MODIFIERS_SUFFIX, item.Modifiers);
       oglItem.createItemAttr(subject.id, newRowId, oglItem.CONTENT_SUFFIX, item.Description);
       oglItem.createItemAttr(subject.id, newRowId, oglItem.INVENTORYSUBFLAG_SUFFIX, oglItem.UNCHECKED);
-      oglItem.createItemAttr(subject.id, newRowId, oglItem.ATTACKID_SUFFIX, '-1');
-      oglItem.createItemAttr(subject.id, newRowId, oglItem.RESOURCEID_SUFFIX, '-1');
       log("Done creating.");
     },
     createItemAttr: (charId, rowId, suffix, value) => {
@@ -1004,8 +1003,10 @@ on('ready', () => {
                         shopContent += `<br><b>${item.Name} x${item.Quantity}</b>`
                           + `<br>${item.Price}`
                           + `<br>${item.Weight}`
-                          + `<br>${item.Description}`
-                          + `<br>[Buy](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)<br>`;
+                          + `<br>${item.Description}`;
+                        if (item.Quantity > 0) {
+						  shopContent += `<br>[Buy](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)<br>`;
+						}
                       });
                     }
                     shopContent += '</div>}}';
