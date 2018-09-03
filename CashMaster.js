@@ -122,15 +122,15 @@ const getattr = (cid, att) => {
   }
   return '';
 };
-const setattr = (cid, att, val) => {
+const setattr = (charId, attrName, val) => {
   //! setattr
   const attr = findObjs({
     type: 'attribute',
-    characterid: cid,
-    name: att,
+    characterid: charId,
+    name: attrName,
   })[0];
   if (typeof attr === 'undefined' || attr == null) {
-    const attr = createObj('attribute', { name: att, characterid: cid, current: parseFloat(val) }); // eslint-disable-line no-unused-vars, no-undef, no-shadow
+    const attr = createObj('attribute', { name: attrName, characterid: charId, current: parseFloat(val) }); // eslint-disable-line no-unused-vars, no-undef, no-shadow
   } else {
     attr.setWithWorker({
       current: parseFloat(val),
@@ -767,6 +767,50 @@ on('ready', () => {
     generateRowID: () => {
       return oglItem.generateUUID()().replace(/_/g, 'Z');
     },
+    getRowIdFromAttribute: (attrName) => {
+      const regex = new RegExp(`${oglItem.ITEM_PREFIX}(.+?)(?:${oglItem.NAME_SUFFIX}|${oglItem.EQUIPPED_SUFFIX})`);
+      return regex.exec(attrName) ? regex.exec(attrName)[1] : '';
+    },
+    getExistingRowId: (subject, itemName) => {
+      let nameAttr = filterObjs((obj) => {
+        if (obj.get('type') === 'attribute'
+          && obj.get('characterid') === subject.id
+          && obj.get('name').indexOf(oglItem.ITEM_PREFIX) !== -1 && obj.get('name').indexOf(oglItem.NAME_SUFFIX) !== -1
+          && obj.get('current') === itemName
+        ) {
+          log(JSON.stringify(obj));
+          return obj;
+        }
+      })[0];
+      return nameAttr ? oglItem.getRowIdFromAttribute(nameAttr.get('name')) : null;
+    },
+    getItemAttr: (subject, rowId, suffix) => {
+      var existing = findObjs({
+      _type: 'attribute',
+      characterid: subject.id,
+      name: oglItem.ITEM_PREFIX + rowId + suffix
+      })[0];
+      
+      return existing;
+    },
+    alterItemCount: (subject, item, rowId, quantity) => {
+      let countAttr = oglItem.getItemAttr(subject, rowId, oglItem.COUNT_SUFFIX);
+      log("Count Attr: " + JSON.stringify(countAttr));
+      let oldCountStr = countAttr ? countAttr.get('current') : '0';
+      log("Old: " + oldCountStr);
+      let newCount = parseInt(oldCountStr) + quantity;
+      log("New: " + newCount)
+      countAttr.setWithWorker({current: newCount + ''});
+    },
+    createOrIncrementItem: (subject, item) => {
+      const existingRowId = oglItem.getExistingRowId(subject, item.Name);
+      if (existingRowId !== null) {
+        oglItem.alterItemCount(subject, item, existingRowId, 1);
+      }
+      else {
+        oglItem.createItem(subject, item);
+      }
+    },
     createItem: (subject, item) => {
       log(`Creating new item for ${subject.id}.`);
       const newRowId = oglItem.generateRowID();
@@ -1274,7 +1318,7 @@ on('ready', () => {
                               if (subtractResult.Success) {
                                 // Schedule major write operations
                                 setTimeout(() => { shopkeeper.set('gmnotes', gmNoteOutput); }, 0);
-                                setTimeout(() => { oglItem.createItem(subject, item); }, 0);
+                                setTimeout(() => { oglItem.createOrIncrementItem(subject, item); }, 0);
                               }
 
                               sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subtractResult.Output}}}`);
