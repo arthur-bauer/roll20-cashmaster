@@ -50,7 +50,10 @@ const recordTransaction = (type, initiator, playerEffects) => {
   log(`  Id: ${id}`);
   log(`  Type: ${type}`);
   log(`  Initiator: ${initiator}`);
-  log(`  Player Effects: ${playerEffects}`);
+  log(`  Player Effects: ${playerEffects.length}`);
+  playerEffects.forEach((effect) => {
+    log(`    ${effect.PlayerName} delta: ${effect.Delta}`);
+  });
   log(`  Timestamp: ${timestamp}`);
 
   state.CashMaster.TransactionHistory.push({
@@ -604,6 +607,68 @@ on('ready', () => {
     sendChat(scname, historyContent);
   };
 
+  const loadPlayerAccount = (subject) => {
+    const dpp = parseFloat(getattr(subject.id, 'pp')) || 0;
+    const dgp = parseFloat(getattr(subject.id, 'gp')) || 0;
+    const dep = parseFloat(getattr(subject.id, 'ep')) || 0;
+    const dsp = parseFloat(getattr(subject.id, 'sp')) || 0;
+    const dcp = parseFloat(getattr(subject.id, 'cp')) || 0;
+    return [dpp, dgp, dep, dsp, dcp];
+  };
+
+  const setPlayerCoinPurse = (initiator, subject, subjectName, subjectAccount, subjectInitial, transactionMessage) => {
+    const subjectEffect = getPlayerEffect(subjectName, getDelta(subjectAccount, subjectInitial));
+    // Update subject account and update output
+    setattr(subject.id, 'pp', parseFloat(subjectAccount[0]));
+    setattr(subject.id, 'gp', parseFloat(subjectAccount[1]));
+    setattr(subject.id, 'ep', parseFloat(subjectAccount[2]));
+    setattr(subject.id, 'sp', parseFloat(subjectAccount[3]));
+    setattr(subject.id, 'cp', parseFloat(subjectAccount[4]));
+    recordTransaction(transactionMessage, initiator, [subjectEffect]);
+  };
+
+  // Subtracts ppa et al from the account
+  const subtractPlayerCoinsIfPossible = (subjectOutput, initiator, subject, subjectName, transactionMessage) => {
+    const retObj = {
+      Success: false,
+      Output: subjectOutput,
+    };
+
+    const subjectInitial = loadPlayerAccount(subject);
+
+    // Deep copy of subject initial account so we can create delta later
+    let subjectAccount = [
+      subjectInitial[0],
+      subjectInitial[1],
+      subjectInitial[2],
+      subjectInitial[3],
+      subjectInitial[4]
+    ];
+
+    if (ppa !== null) subjectAccount = changeMoney(subjectAccount, ppa[2]);
+    if (gpa !== null) subjectAccount = changeMoney(subjectAccount, gpa[2]);
+    if (epa !== null) subjectAccount = changeMoney(subjectAccount, epa[2]);
+    if (spa !== null) subjectAccount = changeMoney(subjectAccount, spa[2]);
+    if (cpa !== null) subjectAccount = changeMoney(subjectAccount, cpa[2]);
+
+    // Verify subject has enough to perform transfer
+    retObj.Output += `<br><b>${subjectName}</b> has `;
+    if (subjectAccount === 'ERROR: Not enough cash.') {
+      retObj.Output += 'not enough cash!';
+      return retObj;
+    }
+
+    retObj.Output += `<br> ${subjectAccount[0]}pp`;
+    retObj.Output += `<br> ${subjectAccount[1]}gp`;
+    retObj.Output += `<br> ${subjectAccount[2]}ep`;
+    retObj.Output += `<br> ${subjectAccount[3]}sp`;
+    retObj.Output += `<br> ${subjectAccount[4]}cp`;
+    setPlayerCoinPurse(initiator, subject, subjectName, subjectAccount, subjectInitial, transactionMessage);
+
+    retObj.Success = true;
+    return retObj;
+  }
+
   const parseGmNotes = (source) => {
     const headerIndex = source.indexOf(gmNotesHeaderString);
     if (headerIndex === -1) {
@@ -649,7 +714,6 @@ on('ready', () => {
     subcommands.forEach((subcommand) => {
       log(`CM Subcommand: ${subcommand}`);
       const argTokens = subcommand.split(/\s+/);
-      const argTags = subcommand.split(' -');
 
       // Operations that do not require a selection
       if (subcommand === '!cm' || argTokens.includes('-help') || argTokens.includes('-h')) {
@@ -804,7 +868,6 @@ on('ready', () => {
                       });
                     }
                     shopContent += '</div>}}';
-                    
                     if (playerIsGM(msg.playerid)) {
                       sendChat(shopkeeperName, shopContent);
                     } else {
@@ -815,8 +878,7 @@ on('ready', () => {
                 }
               }
               sendChat(scname, `/w ${msg.who} Unable to find Shop objects.`);
-            }
-            else {
+            } else {
               sendChat(scname, `/w ${msg.who} Please select a valid shop.`);
             }
           });
@@ -1061,155 +1123,130 @@ on('ready', () => {
           let subjectOutput = '';
           const subjectName = getAttrByName(subject.id, 'character_name');
           const reason = targets[0];
-          // Verify subject has enough to perform transfer
-          // Check if the player attempted to steal from another and populate the transaction data
-          transactionOutput += '<br><b>Transaction Data</b>';
-          if (ppa !== null) {
-            const val = parseFloat(ppa[3]);
-            transactionOutput += `<br> ${ppa[2]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
-              return;
-            }
-          }
-          if (gpa !== null) {
-            const val = parseFloat(gpa[3]);
-            transactionOutput += `<br> ${gpa[2]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
-              return;
-            }
-          }
-          if (epa !== null) {
-            const val = parseFloat(epa[3]);
-            transactionOutput += `<br> ${epa[2]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
-              return;
-            }
-          }
-          if (spa !== null) {
-            const val = parseFloat(spa[3]);
-            transactionOutput += `<br> ${spa[2]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
-              return;
-            }
-          }
-          if (cpa !== null) {
-            const val = parseFloat(cpa[3]);
-            transactionOutput += `<br> ${cpa[2]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
-              return;
-            }
-          }
 
-          // Load subject's existing account
-          const dpp = parseFloat(getattr(subject.id, 'pp')) || 0;
-          const dgp = parseFloat(getattr(subject.id, 'gp')) || 0;
-          const dep = parseFloat(getattr(subject.id, 'ep')) || 0;
-          const dsp = parseFloat(getattr(subject.id, 'sp')) || 0;
-          const dcp = parseFloat(getattr(subject.id, 'cp')) || 0;
-          const subjectInitial = [dpp, dgp, dep, dsp, dcp];
-          let subjectAccount = [dpp, dgp, dep, dsp, dcp];
+          if (argTokens.includes('-buy')) {
+            let purchaseFailed = true;
+            if (targets.length === 2) {
+              const shopkeeperName = targets[1];
+              log(`Attempting to purchase ${reason} from ${shopkeeperName}`);
+              const shopkeeper = getCharByAny(shopkeeperName);
+              const itemName = reason;
+              if (shopkeeper) {
+                shopkeeper.get('gmnotes', (source) => {
+                  if (source) {
+                    const gmNotes = parseGmNotes(source);
+                    if (gmNotes) {
+                      if (gmNotes.CashMaster) {
+                        if (gmNotes.CashMaster.Shop) {
+                          const shop = gmNotes.CashMaster.Shop;
+                          const item = shop.Items.find(p => p.Name === itemName);
+                          if (item) {
+                            if (item.Quantity > 0) {
+                              log(`Valid Buy Target.  Purchaser: ${subjectName}, Seller: ${shopkeeperName} of ${shop.Name}x${item.Quantity}, Item: ${itemName}`);
+                              item.Quantity -= 1;
+                              purchaseFailed = false;
+                              // Prepare updated notes
+                              const gmNoteString = JSON.stringify(gmNotes, null, 4);
+                              const userNotes = source.substr(0, source.indexOf(gmNotesHeaderString));
+                              log(`User Notes: ${userNotes}`);
+                              const formattedOutput = formatShopData(gmNoteString);
+                              const gmNoteOutput = `${userNotes}${formattedOutput}`;
 
-          if (ppa !== null) subjectAccount = changeMoney(subjectAccount, ppa[2]);
-          if (gpa !== null) subjectAccount = changeMoney(subjectAccount, gpa[2]);
-          if (epa !== null) subjectAccount = changeMoney(subjectAccount, epa[2]);
-          if (spa !== null) subjectAccount = changeMoney(subjectAccount, spa[2]);
-          if (cpa !== null) subjectAccount = changeMoney(subjectAccount, cpa[2]);
-
-          // Verify subject has enough to perform transfer
-          subjectOutput += `<br><b>${subjectName}</b> has `;
-          if (subjectAccount === 'ERROR: Not enough cash.') {
-            subjectOutput += 'not enough cash!';
-          } else {
-            if (argTokens.includes('-buy')) {
-              let purchaseFailed = true;
-              if (targets.length == 2) {
-                const shopkeeperName = targets[1];
-                log(`Attempting to purchase ${reason} from ${shopkeeperName}`);
-                const shopkeeper = getCharByAny(shopkeeperName);
-                const itemName = reason;
-                if (shopkeeper) {
-                  shopkeeper.get('gmnotes', (source) => {
-                    if (source) {
-                      const gmNotes = parseGmNotes(source);
-                      if (gmNotes) {
-                        if (gmNotes.CashMaster) {
-                          if (gmNotes.CashMaster.Shop) {
-                            const shop = gmNotes.CashMaster.Shop;
-                            const item = shop.Items.find(p => p.Name === itemName);
-                            if (item) {
-                              if (item.Quantity > 0) {
-                                log(`Valid Buy Target.  Purchaser: ${subjectName}, Seller: ${shopkeeperName} of ${shop.Name}x${item.Quantity}, Item: ${itemName}`);
-                                item.Quantity--;
-                                purchaseFailed = false;
-    
-                                // Prepare updated notes
-                                const gmNoteString = JSON.stringify(gmNotes, null, 4);
-                                const userNotes = source.substr(0, source.indexOf(gmNotesHeaderString));
-                                log(`User Notes: ${userNotes}`);
-                                const formattedOutput = formatShopData(gmNoteString);
-                                const gmNoteOutput = `${userNotes}${formattedOutput}`;
-
-                                // Schedule write
-                                setTimeout(() =>
-                                {
-                                  shopkeeper.set('gmnotes', gmNoteOutput);
-                                },0);
-
-                                // Update player inventory and record transaction
-                                const subjectEffect = getPlayerEffect(subjectName, getDelta(subjectAccount, subjectInitial));
-                    
-                                // Update subject account and update output
-                                setattr(subject.id, 'pp', parseFloat(subjectAccount[0]));
-                                setattr(subject.id, 'gp', parseFloat(subjectAccount[1]));
-                                setattr(subject.id, 'ep', parseFloat(subjectAccount[2]));
-                                setattr(subject.id, 'sp', parseFloat(subjectAccount[3]));
-                                setattr(subject.id, 'cp', parseFloat(subjectAccount[4]));
-                                subjectOutput += `<br> ${subjectAccount[0]}pp`;
-                                subjectOutput += `<br> ${subjectAccount[1]}gp`;
-                                subjectOutput += `<br> ${subjectAccount[2]}ep`;
-                                subjectOutput += `<br> ${subjectAccount[3]}sp`;
-                                subjectOutput += `<br> ${subjectAccount[4]}cp`;
-                    
-                                recordTransaction('Transfer to NPC', msg.who, [subjectEffect]);
+                              // The coin parser requires space at the beginning to prevent overlap with strange player names
+                              populateCoinContents(` ${item.Price}`);
+                              
+                              if (ppa !== null) {
+                                const val = parseFloat(ppa[3]);
+                                transactionOutput += `<br> ${ppa[2]}`;
                               }
+                              if (gpa !== null) {
+                                const val = parseFloat(gpa[3]);
+                                transactionOutput += `<br> ${gpa[2]}`;
+                              }
+                              if (epa !== null) {
+                                const val = parseFloat(epa[3]);
+                                transactionOutput += `<br> ${epa[2]}`;
+                              }
+                              if (spa !== null) {
+                                const val = parseFloat(spa[3]);
+                                transactionOutput += `<br> ${spa[2]}`;
+                              }
+                              if (cpa !== null) {
+                                const val = parseFloat(cpa[3]);
+                                transactionOutput += `<br> ${cpa[2]}`;
+                              }
+
+                              // Verify subject has enough to perform transfer
+                              // Check if the player attempted to steal from another and populate the transaction data
+                              transactionOutput += '<br><b>Transaction Data</b>';
+
+                              const subtractResult = subtractPlayerCoinsIfPossible(subjectOutput, msg.who, subject, subjectName, `Buy ${item.Name} from ${shop.Name}`);
+                              if (subtractResult.Success) {
+                                // Schedule write
+                                setTimeout(() => { shopkeeper.set('gmnotes', gmNoteOutput); }, 0);
+                              }
+
+                              sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subtractResult.Output}}}`);
+                              sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subtractResult.Output}}}`);
                             }
                           }
                         }
                       }
-                    }                    
-                  });
-                }
-              }
-              if (purchaseFailed) {
-                subjectOutput += 'Invalid Purchase Command.';
+                    }
+                  }
+                });
               }
             }
-            else {
-              const subjectEffect = getPlayerEffect(subjectName, getDelta(subjectAccount, subjectInitial));
+          } else {
+            if (ppa !== null) {
+              const val = parseFloat(ppa[3]);
+              transactionOutput += `<br> ${ppa[2]}`;
+              if (val < 0 && !playerIsGM(msg.playerid)) {
+                sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+                return;
+              }
+            }
+            if (gpa !== null) {
+              const val = parseFloat(gpa[3]);
+              transactionOutput += `<br> ${gpa[2]}`;
+              if (val < 0 && !playerIsGM(msg.playerid)) {
+                sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+                return;
+              }
+            }
+            if (epa !== null) {
+              const val = parseFloat(epa[3]);
+              transactionOutput += `<br> ${epa[2]}`;
+              if (val < 0 && !playerIsGM(msg.playerid)) {
+                sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+                return;
+              }
+            }
+            if (spa !== null) {
+              const val = parseFloat(spa[3]);
+              transactionOutput += `<br> ${spa[2]}`;
+              if (val < 0 && !playerIsGM(msg.playerid)) {
+                sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+                return;
+              }
+            }
+            if (cpa !== null) {
+              const val = parseFloat(cpa[3]);
+              transactionOutput += `<br> ${cpa[2]}`;
+              if (val < 0 && !playerIsGM(msg.playerid)) {
+                sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+                return;
+              }
+            }
 
-              // Update subject account and update output
-              setattr(subject.id, 'pp', parseFloat(subjectAccount[0]));
-              setattr(subject.id, 'gp', parseFloat(subjectAccount[1]));
-              setattr(subject.id, 'ep', parseFloat(subjectAccount[2]));
-              setattr(subject.id, 'sp', parseFloat(subjectAccount[3]));
-              setattr(subject.id, 'cp', parseFloat(subjectAccount[4]));
-              subjectOutput += `<br> ${subjectAccount[0]}pp`;
-              subjectOutput += `<br> ${subjectAccount[1]}gp`;
-              subjectOutput += `<br> ${subjectAccount[2]}ep`;
-              subjectOutput += `<br> ${subjectAccount[3]}sp`;
-              subjectOutput += `<br> ${subjectAccount[4]}cp`;
-  
-              recordTransaction('Transfer to NPC', msg.who, [subjectEffect]);
-            }
+            // Verify subject has enough to perform transfer
+            // Check if the player attempted to steal from another and populate the transaction data
+            transactionOutput += '<br><b>Transaction Data</b>';
+            const subtractResult = subtractPlayerCoinsIfPossible(subjectOutput, msg.who, subject, subjectName, 'Transfer to NPC');
+            
+            sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subtractResult.Output}}}`);
+            sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subtractResult.Output}}}`);
           }
-
-          sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subjectOutput}}}`);
-          sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subjectOutput}}}`);
         });
         return;
       }
