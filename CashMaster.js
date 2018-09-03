@@ -667,7 +667,7 @@ on('ready', () => {
 
     retObj.Success = true;
     return retObj;
-  }
+  };
 
   const parseGmNotes = (source) => {
     const headerIndex = source.indexOf(gmNotesHeaderString);
@@ -700,6 +700,102 @@ on('ready', () => {
     return `${gmNotesHeaderString}${outputLines.join('')}`;
   };
 
+  const oglItem = {
+    // ==============================================================================
+    // ITEM_ITEM_PREFIX + ROW_ID + ATTR_SUFFIX============================================
+    // Prefix
+    ITEM_PREFIX: 'repeating_inventory_',
+    ATTACK_PREFIX: 'repeating_attack_',
+    RESOURCE_PREFIX: 'repeating_resource_',
+    // Suffixes
+    COUNT_SUFFIX: '_itemcount',
+    COUNT_INDEX: 0,
+    NAME_SUFFIX: '_itemname',
+    NAME_INDEX: 1,
+    WEIGHT_SUFFIX: '_itemweight',
+    WEIGHT_INDEX: 2,
+    EQUIPPED_SUFFIX: '_equipped',
+    EQUIPPED_INDEX: 3, // Actually determines whether the item is equipped in regards to other attributes (AC, modifiers, etc.)
+    USEASARESOURCE_SUFFIX: '_useasaresource',
+    USEASARESOURCE_INDEX: 4,
+    HASATTACK_SUFFIX: '_hasattack',
+    HASATTACK_INDEX: 5,
+    PROPERTIES_SUFFIX: '_itemproperties',
+    PROPERTIES_INDEX: 6,
+    MODIFIERS_SUFFIX: '_itemmodifiers',
+    MODIFIERS_INDEX: 7,
+    CONTENT_SUFFIX: '_itemcontent',
+    CONTENTS_INDEX: 8,
+    ATTACKID_SUFFIX: '_itemattackid',
+    ATTACKID_INDEX: 9,
+    RESOURCEID_SUFFIX: '_itemresourceid',
+    RESOURCEID_INDEX: 10,
+    INVENTORYSUBFLAG_SUFFIX: '_inventorysubflag',
+    INVENTORYSUBFLAG_INDEX: 11,
+    // These have to be the string equivalent, otherwise the sheet worker will not pick up the change
+    CHECKED: '1',
+    UNCHECKED: '0',
+    generateUUID : function() {
+      var a = 0;
+      var b = [];
+      return function () {
+        var c = (new Date()).getTime() + 0,
+        d = c === a;
+        a = c;
+        for (var e = new Array(8), f = 7; 0 <= f; f--) {
+          e[f] = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz".charAt(c % 64);
+          c = Math.floor(c / 64);
+        }
+        c = e.join("");
+        if (d) {
+          for (f = 11; 0 <= f && 63 === b[f]; f--) {
+            b[f] = 0;
+          }
+          b[f]++;
+        }
+        else {
+          for (f = 0; 12 > f; f++) {
+            b[f] = Math.floor(64 * Math.random());
+          }
+        }
+        for (f = 0; 12 > f; f++) {
+          c += "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz".charAt(b[f]);
+        }
+        return c;
+      };
+    },
+    generateRowID: () => {
+      return oglItem.generateUUID()().replace(/_/g, 'Z');
+    },
+    createItem: (subject, item) => {
+      log(`Creating new item for ${subject.id}.`);
+      const newRowId = oglItem.generateRowID();
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.COUNT_SUFFIX, '1');
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.NAME_SUFFIX, item.Name);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.WEIGHT_SUFFIX, item.Weight);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.EQUIPPED_SUFFIX, oglItem.UNCHECKED);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.USEASARESOURCE_SUFFIX, oglItem.UNCHECKED);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.HASATTACK_SUFFIX, oglItem.UNCHECKED);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.PROPERTIES_SUFFIX, item.Properties);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.MODIFIERS_SUFFIX, item.Modifiers);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.CONTENT_SUFFIX, item.Description);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.INVENTORYSUBFLAG_SUFFIX, oglItem.UNCHECKED);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.ATTACKID_SUFFIX, '-1');
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.RESOURCEID_SUFFIX, '-1');
+      log("Done creating.");
+    },
+    createItemAttr: (charId, rowId, suffix, value) => {
+      const attrName = `${oglItem.ITEM_PREFIX}${rowId}${suffix}`;
+      log(attrName);
+      createObj('attribute', {
+        characterid: charId,
+        name: attrName,
+        current: value,
+        max: ''
+      });
+    },
+  };
+  
   on('chat:message', (msg) => {
     if (msg.type !== 'api') return;
     if (msg.content.startsWith('!cm') !== true) return;
@@ -863,6 +959,7 @@ on('ready', () => {
                       shop.Items.forEach((item) => {
                         shopContent += `<br><b>${item.Name} x${item.Quantity}</b>`
                           + `<br>${item.Price}`
+                          + `<br>${item.Weight}`
                           + `<br>${item.Description}`
                           + `<br>[Buy](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)<br>`;
                       });
@@ -1125,7 +1222,6 @@ on('ready', () => {
           const reason = targets[0];
 
           if (argTokens.includes('-buy')) {
-            let purchaseFailed = true;
             if (targets.length === 2) {
               const shopkeeperName = targets[1];
               log(`Attempting to purchase ${reason} from ${shopkeeperName}`);
@@ -1144,7 +1240,6 @@ on('ready', () => {
                             if (item.Quantity > 0) {
                               log(`Valid Buy Target.  Purchaser: ${subjectName}, Seller: ${shopkeeperName} of ${shop.Name}x${item.Quantity}, Item: ${itemName}`);
                               item.Quantity -= 1;
-                              purchaseFailed = false;
                               // Prepare updated notes
                               const gmNoteString = JSON.stringify(gmNotes, null, 4);
                               const userNotes = source.substr(0, source.indexOf(gmNotesHeaderString));
@@ -1177,8 +1272,9 @@ on('ready', () => {
 
                               const subtractResult = subtractPlayerCoinsIfPossible(subjectOutput, msg.who, subject, subjectName, `Buy ${item.Name} from ${shop.Name}`);
                               if (subtractResult.Success) {
-                                // Schedule write
+                                // Schedule major write operations
                                 setTimeout(() => { shopkeeper.set('gmnotes', gmNoteOutput); }, 0);
+                                setTimeout(() => { oglItem.createItem(subject, item); }, 0);
                               }
 
                               sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subtractResult.Output}}}`);
