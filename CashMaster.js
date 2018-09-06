@@ -439,7 +439,12 @@ on('ready', () => {
     const subjectList = [];
     let targetList = [];
     let currencySpecified = false;
-    const allowStringTarget = argTokens.includes('-dropWithReason') || argTokens.includes('-giveNPC') || argTokens.includes('-buy');
+    const allowStringTarget = argTokens.includes('-dropWithReason') || 
+      argTokens.includes('-giveNPC') || 
+      argTokens.includes('-buy') || 
+      argTokens.includes('-makeShop') || 
+      argTokens.includes('-addItem') ||
+      argTokens.includes('-updateShop');
 
     // Wrapping in try/catch because of the forEach.  This allows us to easily escape to report errors to the user immediately.
     try {
@@ -885,6 +890,10 @@ on('ready', () => {
             + '<br>[Bill Each Selected](!cm -sub ?{Currency to Bill})'
             + '<br>[Split Among Selected](!cm -loot ?{Amount to Split})'
             + '<br>[Transaction History](!cm -th)'
+          + '<br><b>Shop Commands</b>'
+            + '<br>[Show Shop of Selected](!cm -vs)'
+            + '<br>[Create Shop on Selected](!cm -makeShop &#34;?{Shop Name},?{Describe the area around the store},?{Describe the appearance of the store},?{Describe the shopkeeper}&#34;)'
+            + `<br>[Add Item to Selected Shop](!cm -addItem &#34;?{Item Name},?{Item Price},?{Item Description},?{Quantity},?{Weight},?{Properties.  It's okay to leave blank.  Separate multiple with a pipe character.},?{Modifiers.  It's okay to leave blank.  Separate multiple with a pipe character.}&#34;)`
           + '<br><b>Admin Commands</b>'
             + '<br>[Compress Coins of Selected](!cm -merge)'
             + '<br>[Reallocate Coins](!cm -s ?{Will you REALLOCATE party funds evenly|Yes})'
@@ -940,32 +949,6 @@ on('ready', () => {
 
             // If you haven't selected anything, source will literally be the following string: 'null'
             if (source && source !== 'null') {
-              // DEBUG CODE
-              const gmNoteParserDemo = {
-                CashMaster: {
-                  Shop: {
-                    Name: 'Fine Wands',
-                    Location: 'On Feygrove Road, in an arcane district of well-lit avenues and alchemical forges. The street outside is lined with a wrought-iron fence.',
-                    Appearance: 'The shop is a single storey stone-walled building, with a reinforced wooden door. The surrounding yard is filled with scorch marks and craters.',
-                    Shopkeeper: 'The shopkeeper is a young male half-elf named Finy Wete.  He\'s happy to Dye items on request.',
-                    Items: [
-                      {
-                        Name: 'Mageweave Robe',
-                        Price: '669gp',
-                        Description: 'A white robe enchanted with Mage Armor, Prestidigitation, and Mending',
-                        Quantity: 3,
-                      },
-                      {
-                        Name: 'Healing Potion',
-                        Price: '33gp',
-                        Description: 'A standard healing potion for 2d4+2 health.',
-                        Quantity: 999,
-                      },
-                    ],
-                  },
-                },
-              };
-              const gmNoteStringDemo = JSON.stringify(gmNoteParserDemo, null, 4);
 
               // Parse the GM Notes
               const gmNotes = parseGmNotes(source);
@@ -992,23 +975,34 @@ on('ready', () => {
                       avatarTag = `<img src="${avatar}" height="48" width="48"> `;
                     }
 
-                    let shopContent = `&{template:${rt[0]}} {{${rt[1]}=<div align="left" style="margin-left: 7px;margin-right: 7px"><h3>${avatarTag}${shop.Name}</h3><hr>`
+                    let shopContent = `&{template:${rt[0]}} {{${rt[1]}=<div align="left" style="margin-left: 7px;margin-right: 7px">`
+                      + `<h3>${avatarTag}${shop.Name}</h3><hr>`
+                      + '<br>[Edit Name](!cm -updateShop &#34;Name,?{New Name}&#34;)'
                       + `<br><b>Location:</b> ${shop.Location}`
+                      + '<br>[Edit Location](!cm -updateShop &#34;Location,?{New Location Description}&#34;)'
                       + `<br><b>Appearance:</b> ${shop.Appearance}`
-                      + `<br><b>Shopkeeper:</b> ${shop.Shopkeeper}`;
+                      + '<br>[Edit Appearance](!cm -updateShop &#34;Appearance,?{New Appearance Description}&#34;)'
+                      + `<br><b>Shopkeeper:</b> ${shop.Shopkeeper}`
+                      + '<br>[Edit Shopkeeper](!cm -updateShop &#34;Shopkeeper,?{New Shopkeeper Description}&#34;)';
 
                     if (shop.Items) {
                       shopContent += '<hr><br><h4>Wares</h4>';
                       shop.Items.forEach((item) => {
                         shopContent += `<br><b>${item.Name} x${item.Quantity}</b>`
                           + `<br>${item.Price}`
-                          + `<br>${item.Weight}`
-                          + `<br>${item.Description}`;
+                          + `<br>${item.Weight}lbs`
+                          + `<br>${item.Description}<br>`;
                         if (item.Quantity > 0) {
-						  shopContent += `<br>[Buy](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)<br>`;
-						}
+                          shopContent += `[Buy](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)<br>`;
+                        }
                       });
                     }
+                    else {
+                      shop.Items = [];
+                    }
+                    
+                    shopContent += `<br>[Add Item](!cm -addItem &#34;?{Item Name},?{Item Price},?{Item Description},?{Quantity},?{Weight},?{Properties.  It's okay to leave blank.  Separate multiple with a pipe character.},?{Modifiers.  It's okay to leave blank.  Separate multiple with a pipe character.}&#34;)`;
+                    
                     shopContent += '</div>}}';
                     if (playerIsGM(msg.playerid)) {
                       sendChat(shopkeeperName, shopContent);
@@ -1027,7 +1021,7 @@ on('ready', () => {
         });
         return;
       }
-
+	  
       // Coin Transfer between players
       if (argTokens.includes('-transfer') || argTokens.includes('-t')) {
         subjects.forEach((subject) => {
@@ -1748,6 +1742,174 @@ on('ready', () => {
           partyGoldOperation = true;
         }
 
+        // Create a new shop stub
+        if (argTokens.includes('-makeShop')) {
+          const subject = subjects[0];
+          if (targets.length !== 4) {
+            sendChat(scname, '/w gm Invalid Shop Creation Command');
+          }
+          const shopName = targets[0];
+          const locale = targets[1];
+          const appearance = targets[2];
+          const shopkeeper = targets[3];
+          subject.get('gmnotes', (source) => {
+            log(`Existing Notes: ${source}`);
+            let gmNotes = '';
+            
+            // If you haven't selected anything, source will literally be the following string: 'null'
+            if (!source || source === 'null') {
+              source = '';
+              gmNotes = '';
+            }
+            else if(source.includes(gmNotesHeaderString)) {
+              // Parse the GM Notes
+              gmNotes = parseGmNotes(source);
+              log('GM Notes' + gmNotes);
+              if (gmNotes) {
+                log('gmnotes exist');
+                if (gmNotes.CashMaster) {
+                  log('cm exists');
+                  if (gmNotes.CashMaster.Shop) {
+                    log('Shop already exists.');
+                    sendChat(scname, '/w gm Shop already exists.');
+                    return;
+                  }
+                }
+              }
+            }
+            
+            log('Creating new shop.');
+            log(`  Name: ${shopName}`);
+            log(`  Location: ${locale}`);
+            log(`  Appearance: ${appearance}`);
+            log(`  Shopkeeper: ${shopkeeper}`);
+            
+            const shopTemplate = {
+              CashMaster: {
+                Shop: {
+                  Name: shopName,
+                  Location: locale,
+                  Appearance: appearance,
+                  Shopkeeper: shopkeeper,
+                  Items: [],
+                },
+              }
+            };
+            
+            const parseableStart = source.indexOf(gmNotesHeaderString);
+            const userNotes = parseableStart > -1 ? source.substr(0, parseableStart) : source;
+            const shopString = JSON.stringify(shopTemplate, null, 4);
+            const formattedOutput = formatShopData(shopString);
+            const gmNoteOutput = `${userNotes}${formattedOutput}`;
+            setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
+            sendChat(scname, `/w gm Created new shop ${shopName}.`);
+          });
+          return;
+        }
+        
+        if (argTokens.includes('-updateShop')) {
+          if (targets.length !== 2) {
+            sendChat(scname, '/w gm Invalid shop update command.');
+            return;
+          }
+          const param = targets[0];
+          const paramValue = targets[1];
+          
+          const subject = subjects[0];
+          subject.get('gmnotes', (source) => {
+            if (!source || source === 'null') {
+              sendChat(scname, '/w gm No shop exists.');
+              return;
+            }
+            const gmNotes = parseGmNotes(source);
+            if (gmNotes) {
+              if (gmNotes.CashMaster) {
+                const shop = gmNotes.CashMaster.Shop;
+                if (shop) {
+                  switch (param) {
+                    case 'Name':
+                      shop.Name = paramValue;
+                      break;
+                    case 'Location':
+                      shop.Location = paramValue;
+                      break;
+                    case 'Appearance':
+                      shop.Appearance = paramValue;
+                      break;
+                    case 'Shopkeeper':
+                      shop.Shopkeeper = paramValue;
+                      break;
+                    default:
+                      sendChat(scname, '/w gm Invalid Shop Parameter');
+                      return;
+                  }
+                  
+                  const parseableStart = source.indexOf(gmNotesHeaderString);
+                  const userNotes = parseableStart > -1 ? source.substr(0, parseableStart) : source;
+                  const shopString = JSON.stringify(gmNotes, null, 4);
+                  const formattedOutput = formatShopData(shopString);
+                  const gmNoteOutput = `${userNotes}${formattedOutput}`;
+                  setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
+                  sendChat(scname, '/w gm Shop updated.');
+                }
+              }
+            }
+          });
+          return;
+        }
+        
+        
+        // Add Item to Shop
+        if (argTokens.includes('-addItem')) {
+          if (targets.length !== 7) {
+            sendChat(scname, '/w gm Invalid item add command.');
+            return;
+          }
+          const subject = subjects[0];
+          
+          const itemName = targets[0];
+          const price = targets[1];
+          const desc = targets[2];
+          const quantity = targets[3];
+          const weight = targets[4];
+          const properties = targets[5].split('|').join(', ');
+          const modifiers = targets[6].split('|').join(', ');
+          
+          subject.get('gmnotes', (source) => {
+            if (!source || source === 'null') {
+              sendChat(scname, '/w gm No shop exists.');
+              return;
+            }
+            const gmNotes = parseGmNotes(source);
+            if (gmNotes) {
+              if (gmNotes.CashMaster) {
+                if (gmNotes.CashMaster.Shop) {
+                  if (gmNotes.CashMaster.Shop.Items) {
+                    let items = gmNotes.CashMaster.Shop.Items;
+                    items.push({
+                      Name: itemName,
+                      Price: price,
+                      Description: desc,
+                      Quantity: quantity,
+                      Weight: weight,
+                      Properties: properties,
+                      Modifiers: modifiers,
+                    });
+                    const parseableStart = source.indexOf(gmNotesHeaderString);
+                    const userNotes = parseableStart > -1 ? source.substr(0, parseableStart) : source;
+                    const shopString = JSON.stringify(gmNotes, null, 4);
+                    const formattedOutput = formatShopData(shopString);
+                    const gmNoteOutput = `${userNotes}${formattedOutput}`;
+                    setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
+                    sendChat(scname, '/w gm Item added.');
+                  }
+                }
+              }
+            }
+          });
+          return;
+        }
+        
         // Set Party to selected
         if (argTokens.includes('-setParty') || argTokens.includes('-sp')) {
           const partyList = [];
