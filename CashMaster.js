@@ -955,7 +955,9 @@ on('ready', () => {
     if (msg.type !== 'api') return;
     if (msg.content.startsWith('!cm') !== true) return;
     const subcommands = msg.content.split(';');
-    msg.who = msg.who.replace(" (GM)",""); // remove the (GM) at the end of the GM name
+    if (playerIsGM(msg.playerid)) {
+      msg.who = msg.who.replace(' (GM)', ''); // remove the (GM) at the end of the GM name
+    }
     // Initialize State object
     initCM();
 
@@ -1440,8 +1442,6 @@ on('ready', () => {
             sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subtractResult.Output}}}`);
             sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subtractResult.Output}}}`);
           }
-          sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subjectOutput}}}`);
-          sendChat(scname, `/w "${subjectName}" &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subjectOutput}}}`);
         });
         return;
       }
