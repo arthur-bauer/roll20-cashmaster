@@ -444,7 +444,8 @@ on('ready', () => {
       argTokens.includes('-buy') || 
       argTokens.includes('-makeShop') || 
       argTokens.includes('-addItem') ||
-      argTokens.includes('-updateShop');
+      argTokens.includes('-updateShop') ||
+      argTokens.includes('-updateItem');
 
     // Wrapping in try/catch because of the forEach.  This allows us to easily escape to report errors to the user immediately.
     try {
@@ -705,6 +706,80 @@ on('ready', () => {
     });
     return `${gmNotesHeaderString}${outputLines.join('')}`;
   };
+  
+  const displayShop = (subject, shop, shopkeeperName) => {
+    subject.get('_defaulttoken', (tokenJSON) => {
+      let avatarTag = '';
+      if (tokenJSON) {
+        let avatar = JSON.parse(tokenJSON).imgsrc;
+
+        // strip off the ?#
+        const urlEnd = avatar.indexOf('?');
+        if (urlEnd > -1) {
+          avatar = avatar.substr(0, urlEnd);
+        }
+        avatarTag = `<img src="${avatar}" height="48" width="48"> `;
+      }
+
+      let playerShop = '';
+      let gmShop = '';
+      
+      const shopDisplay = `&{template:${rt[0]}} {{${rt[1]}=<div align="left" style="margin-left: 7px;margin-right: 7px">`
+        + `<h3>${avatarTag}${shop.Name}</h3><hr>`
+        + `<br><b>Location:</b> ${shop.Location}`
+        + `<br><b>Appearance:</b> ${shop.Appearance}`
+        + `<br><b>Shopkeeper:</b> ${shop.Shopkeeper}`;
+      
+      playerShop += shopDisplay;
+      gmShop += shopDisplay;
+      gmShop += '<br>[Edit](!cm -updateShop &#34;?{Shop Field|Name|Location|Appearance|Shopkeeper},?{New Field Value}&#34;)';
+
+      if (shop.Items) {
+        const waresHeader = '<hr><h4>Wares</h4>';
+        playerShop += waresHeader;
+        gmShop += waresHeader;
+        shop.Items.forEach((item) => {
+          let itemDisplay = `<br><b>${item.Name}`; 
+          
+          itemDisplay += item.Quantity ? `x${item.Quantity}</b>` : '</b>';
+          itemDisplay += item.Price ? `<br><b>Price</b>: ${item.Price}` : '';
+          itemDisplay += item.Weight ? `<br><b>Weight</b>: ${item.Weight}lbs` : '';
+          itemDisplay += item.Description ? `<br><b>Description</b>: ${item.Description}` : '';
+          itemDisplay += item.Modifiers ? `<br><b>Modifiers</b>: ${item.Weight}` : '';
+          itemDisplay += item.Properties ? `<br><b>Properties</b>: ${item.Properties}` : '';
+          itemDisplay += '<br>';
+          
+          playerShop += itemDisplay;
+          gmShop += itemDisplay;
+          
+          if (item.Quantity > 0) {
+            const buyButton = `[Buy](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)`;
+            playerShop += buyButton;
+            gmShop += buyButton;
+          }
+          
+          gmShop += `[Edit](!cm -updateItem &#34;${item.Name},?{Item Field|Name|Quantity|Price|Weight|Description|Modifiers|Properties},?{New field value}&#34;)`;
+          gmShop += `[Delete](!cm -updateItem &#34;${item.Name},?{Type DELETE if you wish to delete ${item.Name}.},?{Are you absolutely sure|YES|NO}&#34;)`;
+          
+          playerShop += '<br>';
+          gmShop += '<br>';
+        });
+      }
+      else {
+        shop.Items = [];
+      }
+      
+      gmShop += `<br>[Add Item](!cm -addItem &#34;?{Item Name},?{Item Price},?{Item Description},?{Quantity},?{Weight},?{Properties.  It's okay to leave blank.  Separate multiple with a pipe character.},?{Modifiers.  It's okay to leave blank.  Separate multiple with a pipe character.}&#34;)`;
+      
+      const closeDiv = '</div>}}';
+      playerShop += closeDiv;
+      gmShop += closeDiv;
+      
+      sendChat(shopkeeperName, playerShop);
+      sendChat(shopkeeperName, `/w gm ${gmShop}`);
+    });
+    
+  };
 
   const oglItem = {
     // ==============================================================================
@@ -944,6 +1019,11 @@ on('ready', () => {
 
       if (argTokens.includes('-viewShop') || argTokens.includes('-vs')) {
         subjects.forEach((subject) => {
+          if (!subject) {
+            sendChat(scname, `/w ${msg.who} Subject is undefined.  Token may not have assigned character sheet.`);
+            sendChat(scname, `/w gm ${msg.who} attempted a command, but Subject was undefined.`);
+            return;
+          }
           subject.get('gmnotes', (source) => {
             log(`Existing Notes: ${source}`);
 
@@ -954,62 +1034,14 @@ on('ready', () => {
               const gmNotes = parseGmNotes(source);
               if (!gmNotes) {
                 sendChat(scname, '/w gm Target does not possess a GM Notes block to parse.');
+                return;
               }
 
               // Display Shop to Users
               if (gmNotes.CashMaster) {
-                const shopkeeperName = getAttrByName(subject.id, 'character_name');
                 if (gmNotes.CashMaster.Shop) {
                   const shop = gmNotes.CashMaster.Shop;
-
-                  subject.get('_defaulttoken', (tokenJSON) => {
-                    let avatarTag = '';
-                    if (tokenJSON) {
-                      let avatar = JSON.parse(tokenJSON).imgsrc;
-
-                      // strip off the ?#
-                      const urlEnd = avatar.indexOf('?');
-                      if (urlEnd > -1) {
-                        avatar = avatar.substr(0, urlEnd);
-                      }
-                      avatarTag = `<img src="${avatar}" height="48" width="48"> `;
-                    }
-
-                    let shopContent = `&{template:${rt[0]}} {{${rt[1]}=<div align="left" style="margin-left: 7px;margin-right: 7px">`
-                      + `<h3>${avatarTag}${shop.Name}</h3><hr>`
-                      + '<br>[Edit Name](!cm -updateShop &#34;Name,?{New Name}&#34;)'
-                      + `<br><b>Location:</b> ${shop.Location}`
-                      + '<br>[Edit Location](!cm -updateShop &#34;Location,?{New Location Description}&#34;)'
-                      + `<br><b>Appearance:</b> ${shop.Appearance}`
-                      + '<br>[Edit Appearance](!cm -updateShop &#34;Appearance,?{New Appearance Description}&#34;)'
-                      + `<br><b>Shopkeeper:</b> ${shop.Shopkeeper}`
-                      + '<br>[Edit Shopkeeper](!cm -updateShop &#34;Shopkeeper,?{New Shopkeeper Description}&#34;)';
-
-                    if (shop.Items) {
-                      shopContent += '<hr><br><h4>Wares</h4>';
-                      shop.Items.forEach((item) => {
-                        shopContent += `<br><b>${item.Name} x${item.Quantity}</b>`
-                          + `<br>${item.Price}`
-                          + `<br>${item.Weight}lbs`
-                          + `<br>${item.Description}<br>`;
-                        if (item.Quantity > 0) {
-                          shopContent += `[Buy](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)<br>`;
-                        }
-                      });
-                    }
-                    else {
-                      shop.Items = [];
-                    }
-                    
-                    shopContent += `<br>[Add Item](!cm -addItem &#34;?{Item Name},?{Item Price},?{Item Description},?{Quantity},?{Weight},?{Properties.  It's okay to leave blank.  Separate multiple with a pipe character.},?{Modifiers.  It's okay to leave blank.  Separate multiple with a pipe character.}&#34;)`;
-                    
-                    shopContent += '</div>}}';
-                    if (playerIsGM(msg.playerid)) {
-                      sendChat(shopkeeperName, shopContent);
-                    } else {
-                      sendChat(shopkeeperName, `/w "${msg.who}" ${shopContent}`);
-                    }
-                  });
+                  displayShop(subject, shop, getAttrByName(subject.id, 'character_name'));
                   return;
                 }
               }
@@ -1430,6 +1462,11 @@ on('ready', () => {
         if (subjects) {
           partymember = subjects.length;
           subjects.forEach((subject) => {
+            if (!subject) {
+              sendChat(scname, `/w ${msg.who} Subject is undefined.`);
+              sendChat(scname, `/w gm ${msg.who} attempted a command, but Subject was undefined.`);
+              return;
+            }
             partycounter += 1;
             name = getAttrByName(subject.id, 'character_name');
             pp = parseFloat(getattr(subject.id, 'pp')) || 0;
@@ -1784,15 +1821,16 @@ on('ready', () => {
             log(`  Appearance: ${appearance}`);
             log(`  Shopkeeper: ${shopkeeper}`);
             
+            const shop = {
+              Name: shopName,
+              Location: locale,
+              Appearance: appearance,
+              Shopkeeper: shopkeeper,
+              Items: [],
+            };
             const shopTemplate = {
               CashMaster: {
-                Shop: {
-                  Name: shopName,
-                  Location: locale,
-                  Appearance: appearance,
-                  Shopkeeper: shopkeeper,
-                  Items: [],
-                },
+                Shop: shop,
               }
             };
             
@@ -1802,11 +1840,13 @@ on('ready', () => {
             const formattedOutput = formatShopData(shopString);
             const gmNoteOutput = `${userNotes}${formattedOutput}`;
             setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
-            sendChat(scname, `/w gm Created new shop ${shopName}.`);
+            sendChat(scname, `/w gm Creating new shop ${shopName}...`);
+            setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
           });
           return;
         }
         
+        // Update the specified shop field
         if (argTokens.includes('-updateShop')) {
           if (targets.length !== 2) {
             sendChat(scname, '/w gm Invalid shop update command.');
@@ -1850,7 +1890,8 @@ on('ready', () => {
                   const formattedOutput = formatShopData(shopString);
                   const gmNoteOutput = `${userNotes}${formattedOutput}`;
                   setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
-                  sendChat(scname, '/w gm Shop updated.');
+                  sendChat(scname, '/w gm Shop Updating...');
+                  setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
                 }
               }
             }
@@ -1858,6 +1899,89 @@ on('ready', () => {
           return;
         }
         
+        // Edit the specified item field
+        if (argTokens.includes('-updateItem')) {
+          if (targets.length !== 3) {
+            sendChat(scname, '/w gm Invalid item update command.');
+            return;
+          }
+          const itemName = targets[0];
+          const param = targets[1];
+          const paramValue = targets[2];
+          
+          const subject = subjects[0];
+          subject.get('gmnotes', (source) => {
+            if (!source || source === 'null') {
+              sendChat(scname, '/w gm No shop exists.');
+              return;
+            }
+            const gmNotes = parseGmNotes(source);
+            if (gmNotes) {
+              if (gmNotes.CashMaster) {
+                const shop = gmNotes.CashMaster.Shop;
+                if (shop) {
+                  const items = shop.Items;
+                  log('Items: ' + JSON.stringify(items));
+                  if (items) {
+                    if (items.length > 0) {
+                      log('Item Name: ' + itemName);
+                      const itemIndex = items.map(i => i.Name).indexOf(itemName);
+                      log('Item Index: ' + itemIndex);
+                      if (itemIndex === -1) {
+                        sendChat(scname, '/w gm Item does not exist');
+                        return;
+                      }
+                      
+                      if (param === 'DELETE' && paramValue === 'YES') {
+                        items.splice(itemIndex,1);
+                      }
+                      else {
+                        const item = items[itemIndex];
+                        log(`Item: ${JSON.stringify(item)}`);
+                        switch (param) {
+                          case 'Name':
+                            item.Name = paramValue;
+                            break;
+                          case 'Price':
+                            item.Price = paramValue;
+                            break;
+                          case 'Description':
+                            item.Description = paramValue;
+                            break;
+                          case 'Quantity':
+                            item.Quantity = paramValue;
+                            break;
+                          case 'Weight':
+                            item.Weight = paramValue;
+                            break;
+                          case 'Properties':
+                            item.Properties = paramValue.split('|').join(', ');
+                            break;
+                          case 'Modifiers':
+                            item.Modifiers = paramValue.split('|').join(', ');
+                            break;
+                          default:
+                            sendChat(scname, '/w gm Invalid Item Parameter or Delete Cancelled.');
+                            return;
+                        }
+                      }
+                      const parseableStart = source.indexOf(gmNotesHeaderString);
+                      const userNotes = parseableStart > -1 ? source.substr(0, parseableStart) : source;
+                      const shopString = JSON.stringify(gmNotes, null, 4);
+                      const formattedOutput = formatShopData(shopString);
+                      const gmNoteOutput = `${userNotes}${formattedOutput}`;
+                      setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
+                      sendChat(scname, '/w gm Item Updating...');
+                      setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
+                      
+                    }
+                  }
+                }
+              }
+            }
+          });
+          return;
+        }
         
         // Add Item to Shop
         if (argTokens.includes('-addItem')) {
@@ -1884,8 +2008,9 @@ on('ready', () => {
             if (gmNotes) {
               if (gmNotes.CashMaster) {
                 if (gmNotes.CashMaster.Shop) {
-                  if (gmNotes.CashMaster.Shop.Items) {
-                    let items = gmNotes.CashMaster.Shop.Items;
+                  const shop = gmNotes.CashMaster.Shop;
+                  if (shop.Items) {
+                    let items = shop.Items;
                     items.push({
                       Name: itemName,
                       Price: price,
@@ -1901,7 +2026,8 @@ on('ready', () => {
                     const formattedOutput = formatShopData(shopString);
                     const gmNoteOutput = `${userNotes}${formattedOutput}`;
                     setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
-                    sendChat(scname, '/w gm Item added.');
+                    sendChat(scname, '/w gm Adding Item...');
+                    setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
                   }
                 }
               }
