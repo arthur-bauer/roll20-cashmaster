@@ -439,13 +439,15 @@ on('ready', () => {
     const subjectList = [];
     let targetList = [];
     let currencySpecified = false;
-    const allowStringTarget = argTokens.includes('-dropWithReason') || 
-      argTokens.includes('-giveNPC') || 
-      argTokens.includes('-buy') || 
-      argTokens.includes('-makeShop') || 
-      argTokens.includes('-addItem') ||
-      argTokens.includes('-updateShop') ||
-      argTokens.includes('-updateItem');
+
+    // These commands *do* have targets, but the targets are not characters.  Instead, they are strings.
+    const allowStringTarget = argTokens.includes('-dropWithReason')
+      || argTokens.includes('-giveNPC')
+      || argTokens.includes('-buy')
+      || argTokens.includes('-makeShop')
+      || argTokens.includes('-addItem')
+      || argTokens.includes('-updateShop')
+      || argTokens.includes('-updateItem');
 
     // Wrapping in try/catch because of the forEach.  This allows us to easily escape to report errors to the user immediately.
     try {
@@ -677,11 +679,19 @@ on('ready', () => {
   };
 
   const parseGmNotes = (source) => {
-    const headerIndex = source.indexOf(gmNotesHeaderString);
-    if (headerIndex === -1) {
+    const headerExp = /<h1([^>]*)?>GM Notes Parser<\/h1>/;
+    const headerMatch = headerExp.exec(source);
+    if (headerMatch === null) {
+      sendChat(scname, '/w GM Notes do not contain parseable section.');
       return null;
     }
-    const parseableNotes = source.substr(headerIndex + gmNotesHeaderString.length);
+    const headerMatchStr = headerMatch[0];
+    const headerIndex = source.indexOf(headerMatchStr);
+    if (headerIndex === -1) {
+      log('GM Parser Header Not Present');
+      return null;
+    }
+    const parseableNotes = source.substr(headerIndex + headerMatchStr.length);
     const lines = parseableNotes.split('</p>');
     const datalines = [];
     lines.forEach((line) => {
@@ -706,30 +716,33 @@ on('ready', () => {
     });
     return `${gmNotesHeaderString}${outputLines.join('')}`;
   };
-  
+
   const displayShop = (subject, shop, shopkeeperName) => {
     subject.get('_defaulttoken', (tokenJSON) => {
       let avatarTag = '';
       if (tokenJSON) {
-        let avatar = JSON.parse(tokenJSON).imgsrc;
+        const parsedToken = JSON.parse(tokenJSON);
+        if (parsedToken) {
+          let avatar = parsedToken.imgsrc;
 
-        // strip off the ?#
-        const urlEnd = avatar.indexOf('?');
-        if (urlEnd > -1) {
-          avatar = avatar.substr(0, urlEnd);
+          // strip off the ?#
+          const urlEnd = avatar.indexOf('?');
+          if (urlEnd > -1) {
+            avatar = avatar.substr(0, urlEnd);
+          }
+          avatarTag = `<img src="${avatar}" height="48" width="48"> `;
         }
-        avatarTag = `<img src="${avatar}" height="48" width="48"> `;
       }
 
       let playerShop = '';
       let gmShop = '';
-      
+  
       const shopDisplay = `&{template:${rt[0]}} {{${rt[1]}=<div align="left" style="margin-left: 7px;margin-right: 7px">`
         + `<h3>${avatarTag}${shop.Name}</h3><hr>`
         + `<br><b>Location:</b> ${shop.Location}`
         + `<br><b>Appearance:</b> ${shop.Appearance}`
         + `<br><b>Shopkeeper:</b> ${shop.Shopkeeper}`;
-      
+
       playerShop += shopDisplay;
       gmShop += shopDisplay;
       gmShop += '<br>[Edit](!cm -updateShop &#34;?{Shop Field|Name|Location|Appearance|Shopkeeper},?{New Field Value}&#34;)';
@@ -739,8 +752,8 @@ on('ready', () => {
         playerShop += waresHeader;
         gmShop += waresHeader;
         shop.Items.forEach((item) => {
-          let itemDisplay = `<br><b>${item.Name}`; 
-          
+          let itemDisplay = `<br><b>${item.Name}`;
+
           itemDisplay += item.Quantity ? `x${item.Quantity}</b>` : '</b>';
           itemDisplay += item.Price ? `<br><b>Price</b>: ${item.Price}` : '';
           itemDisplay += item.Weight ? `<br><b>Weight</b>: ${item.Weight}lbs` : '';
@@ -748,28 +761,34 @@ on('ready', () => {
           itemDisplay += item.Modifiers ? `<br><b>Modifiers</b>: ${item.Weight}` : '';
           itemDisplay += item.Properties ? `<br><b>Properties</b>: ${item.Properties}` : '';
           itemDisplay += '<br>';
-          
+
           playerShop += itemDisplay;
           gmShop += itemDisplay;
-          
+
           if (item.Quantity > 0) {
             const buyButton = `[Buy](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)`;
             playerShop += buyButton;
             gmShop += buyButton;
           }
-          
+
           gmShop += `[Edit](!cm -updateItem &#34;${item.Name},?{Item Field|Name|Quantity|Price|Weight|Description|Modifiers|Properties},?{New field value}&#34;)`;
           gmShop += `[Delete](!cm -updateItem &#34;${item.Name},?{Type DELETE if you wish to delete ${item.Name}.},?{Are you absolutely sure|YES|NO}&#34;)`;
           
           playerShop += '<br>';
           gmShop += '<br>';
         });
-      }
-      else {
+      } else {
         shop.Items = [];
       }
       
-      gmShop += `<br>[Add Item](!cm -addItem &#34;?{Item Name},?{Item Price},?{Item Description},?{Quantity},?{Weight},?{Properties.  It's okay to leave blank.  Separate multiple with a pipe character.},?{Modifiers.  It's okay to leave blank.  Separate multiple with a pipe character.}&#34;)`;
+      gmShop += '<br>[Add Item](!cm -addItem &#34;'
+        + '?{Item Name},'
+        + '?{Item Price},'
+        + '?{Item Description},'
+        + '?{Quantity},'
+        + '?{Weight},'
+        + '?{Properties.  It is okay to leave blank.  Separate multiple with a pipe character.},'
+        + '?{Modifiers.  It is okay to leave blank.  Separate multiple with a pipe character.}&#34;)';
       
       const closeDiv = '</div>}}';
       playerShop += closeDiv;
@@ -778,7 +797,6 @@ on('ready', () => {
       sendChat(shopkeeperName, playerShop);
       sendChat(shopkeeperName, `/w gm ${gmShop}`);
     });
-    
   };
 
   const oglItem = {
@@ -788,6 +806,7 @@ on('ready', () => {
     ITEM_PREFIX: 'repeating_inventory_',
     ATTACK_PREFIX: 'repeating_attack_',
     RESOURCE_PREFIX: 'repeating_resource_',
+
     // Suffixes
     COUNT_SUFFIX: '_itemcount',
     COUNT_INDEX: 0,
@@ -813,10 +832,14 @@ on('ready', () => {
     RESOURCEID_INDEX: 10,
     INVENTORYSUBFLAG_SUFFIX: '_inventorysubflag',
     INVENTORYSUBFLAG_INDEX: 11,
+
     // These have to be the string equivalent, otherwise the sheet worker will not pick up the change
     CHECKED: '1',
     UNCHECKED: '0',
-    generateUUID : function() {
+
+    // Generate a random UUID.  Disabling eslint as this is a The Aaron utility function.
+    /* eslint-disable */
+    generateUUID: () => {
       var a = 0;
       var b = [];
       return function () {
@@ -824,74 +847,81 @@ on('ready', () => {
         d = c === a;
         a = c;
         for (var e = new Array(8), f = 7; 0 <= f; f--) {
-          e[f] = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz".charAt(c % 64);
+          e[f] = '-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz'.charAt(c % 64);
           c = Math.floor(c / 64);
         }
-        c = e.join("");
+        c = e.join('');
         if (d) {
           for (f = 11; 0 <= f && 63 === b[f]; f--) {
             b[f] = 0;
           }
           b[f]++;
-        }
-        else {
+        } else {
           for (f = 0; 12 > f; f++) {
             b[f] = Math.floor(64 * Math.random());
           }
         }
         for (f = 0; 12 > f; f++) {
-          c += "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz".charAt(b[f]);
+          c += '-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz'.charAt(b[f]);
         }
         return c;
       };
     },
-    generateRowID: () => {
-      return oglItem.generateUUID()().replace(/_/g, 'Z');
-    },
+    /* eslint-enable */
+
+    // Generate a random row ID
+    generateRowID: () => oglItem.generateUUID()().replace(/_/g, 'Z'),
+
+    // Given a row attribute
     getRowIdFromAttribute: (attrName) => {
       const regex = new RegExp(`${oglItem.ITEM_PREFIX}(.+?)(?:${oglItem.NAME_SUFFIX}|${oglItem.EQUIPPED_SUFFIX})`);
       return regex.exec(attrName) ? regex.exec(attrName)[1] : '';
     },
     getExistingRowId: (subject, itemName) => {
-      let nameAttr = filterObjs((obj) => {
+      const nameAttr = filterObjs((obj) => { // eslint-disable-line no-undef, consistent-return
         if (obj.get('type') === 'attribute'
           && obj.get('characterid') === subject.id
-          && obj.get('name').indexOf(oglItem.ITEM_PREFIX) !== -1 && obj.get('name').indexOf(oglItem.NAME_SUFFIX) !== -1
-          && obj.get('current') === itemName
-        ) {
+          && obj.get('name').indexOf(oglItem.ITEM_PREFIX) !== -1
+          && obj.get('name').indexOf(oglItem.NAME_SUFFIX) !== -1
+          && obj.get('current') === itemName) {
           log(JSON.stringify(obj));
           return obj;
         }
-      })[0];
-      return nameAttr ? oglItem.getRowIdFromAttribute(nameAttr.get('name')) : null;
+      });
+      if (!nameAttr || nameAttr.length === 0) {
+        return null;
+      }
+      return nameAttr[0] ? oglItem.getRowIdFromAttribute(nameAttr[0].get('name')) : null;
     },
     getItemAttr: (subject, rowId, suffix) => {
-      var existing = findObjs({
-      _type: 'attribute',
-      characterid: subject.id,
-      name: oglItem.ITEM_PREFIX + rowId + suffix
+      const existing = findObjs({
+        _type: 'attribute',
+        characterid: subject.id,
+        name: oglItem.ITEM_PREFIX + rowId + suffix,
       })[0];
       
       return existing;
     },
+    
+    // Add or subtract to the quantity of the item
     alterItemCount: (subject, item, rowId, modifierQuantity) => {
-      let countAttr = oglItem.getItemAttr(subject, rowId, oglItem.COUNT_SUFFIX);
-      log("Count Attr: " + JSON.stringify(countAttr));
-      let oldCountStr = countAttr ? countAttr.get('current') : '0';
-      log("Old: " + oldCountStr);
-      let newCount = parseInt(oldCountStr) + modifierQuantity;
-      log("New: " + newCount)
-      countAttr.setWithWorker({current: newCount + ''});
+      const countAttr = oglItem.getItemAttr(subject, rowId, oglItem.COUNT_SUFFIX);
+      const oldCountStr = countAttr ? countAttr.get('current') : '0';
+      const newCount = parseInt(oldCountStr, 10) + modifierQuantity;
+      countAttr.setWithWorker({ current: `${newCount}` });
     },
+
+    // Creates an item (or increments the count if it already exists)
     createOrIncrementItem: (subject, item) => {
       const existingRowId = oglItem.getExistingRowId(subject, item.Name);
       if (existingRowId !== null) {
         oglItem.alterItemCount(subject, item, existingRowId, 1);
-      }
-      else {
+      } else {
         oglItem.createItem(subject, item);
       }
     },
+
+    // Creates a brand new item in an inventory
     createItem: (subject, item) => {
       log(`Creating new item for ${subject.id}.`);
       const newRowId = oglItem.generateRowID();
@@ -905,16 +935,18 @@ on('ready', () => {
       oglItem.createItemAttr(subject.id, newRowId, oglItem.MODIFIERS_SUFFIX, item.Modifiers);
       oglItem.createItemAttr(subject.id, newRowId, oglItem.CONTENT_SUFFIX, item.Description);
       oglItem.createItemAttr(subject.id, newRowId, oglItem.INVENTORYSUBFLAG_SUFFIX, oglItem.UNCHECKED);
-      log("Done creating.");
+      log('Done creating.');
     },
+
+    // Creates an item attribute (there are several per item)
     createItemAttr: (charId, rowId, suffix, value) => {
       const attrName = `${oglItem.ITEM_PREFIX}${rowId}${suffix}`;
       log(attrName);
-      createObj('attribute', {
+      createObj('attribute', {// eslint-disable-line no-undef
         characterid: charId,
         name: attrName,
         current: value,
-        max: ''
+        max: '',
       });
     },
   };
@@ -968,7 +1000,6 @@ on('ready', () => {
           + '<br><b>Shop Commands</b>'
             + '<br>[Show Shop of Selected](!cm -vs)'
             + '<br>[Create Shop on Selected](!cm -makeShop &#34;?{Shop Name},?{Describe the area around the store},?{Describe the appearance of the store},?{Describe the shopkeeper}&#34;)'
-            + `<br>[Add Item to Selected Shop](!cm -addItem &#34;?{Item Name},?{Item Price},?{Item Description},?{Quantity},?{Weight},?{Properties.  It's okay to leave blank.  Separate multiple with a pipe character.},?{Modifiers.  It's okay to leave blank.  Separate multiple with a pipe character.}&#34;)`
           + '<br><b>Admin Commands</b>'
             + '<br>[Compress Coins of Selected](!cm -merge)'
             + '<br>[Reallocate Coins](!cm -s ?{Will you REALLOCATE party funds evenly|Yes})'
@@ -1017,6 +1048,7 @@ on('ready', () => {
         return;
       }
 
+      // Display the shop.  The GM is presented with both the normal shop and the editable shop
       if (argTokens.includes('-viewShop') || argTokens.includes('-vs')) {
         subjects.forEach((subject) => {
           if (!subject) {
@@ -1029,7 +1061,6 @@ on('ready', () => {
 
             // If you haven't selected anything, source will literally be the following string: 'null'
             if (source && source !== 'null') {
-
               // Parse the GM Notes
               const gmNotes = parseGmNotes(source);
               if (!gmNotes) {
@@ -1053,7 +1084,7 @@ on('ready', () => {
         });
         return;
       }
-	  
+
       // Coin Transfer between players
       if (argTokens.includes('-transfer') || argTokens.includes('-t')) {
         subjects.forEach((subject) => {
@@ -1288,7 +1319,6 @@ on('ready', () => {
         subjects.forEach((subject) => {
           output = '';
           let transactionOutput = '';
-          let subjectOutput = '';
           const subjectName = getAttrByName(subject.id, 'character_name');
           const reason = targets[0];
 
@@ -1341,7 +1371,7 @@ on('ready', () => {
                               // Check if the player attempted to steal from another and populate the transaction data
                               transactionOutput += '<br><b>Transaction Data</b>';
 
-                              const subtractResult = subtractPlayerCoinsIfPossible(subjectOutput, msg.who, subject, subjectName, `Buy ${item.Name} from ${shop.Name}`);
+                              const subtractResult = subtractPlayerCoinsIfPossible('', msg.who, subject, subjectName, `Buy ${item.Name} from ${shop.Name}`);
                               if (subtractResult.Success) {
                                 // Schedule major write operations
                                 setTimeout(() => { shopkeeper.set('gmnotes', gmNoteOutput); }, 0);
@@ -1350,6 +1380,7 @@ on('ready', () => {
 
                               sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subtractResult.Output}}}`);
                               sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subtractResult.Output}}}`);
+                              setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
                             }
                           }
                         }
@@ -1404,7 +1435,7 @@ on('ready', () => {
             // Verify subject has enough to perform transfer
             // Check if the player attempted to steal from another and populate the transaction data
             transactionOutput += '<br><b>Transaction Data</b>';
-            const subtractResult = subtractPlayerCoinsIfPossible(subjectOutput, msg.who, subject, subjectName, 'Transfer to NPC');
+            const subtractResult = subtractPlayerCoinsIfPossible('', msg.who, subject, subjectName, 'Transfer to NPC');
             
             sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subtractResult.Output}}}`);
             sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subtractResult.Output}}}`);
@@ -1459,32 +1490,30 @@ on('ready', () => {
         let partyGoldOperation = false;
 
         // Create party gold output string
-        if (subjects) {
-          partymember = subjects.length;
-          subjects.forEach((subject) => {
-            if (!subject) {
-              sendChat(scname, `/w ${msg.who} Subject is undefined.`);
-              sendChat(scname, `/w gm ${msg.who} attempted a command, but Subject was undefined.`);
-              return;
-            }
-            partycounter += 1;
-            name = getAttrByName(subject.id, 'character_name');
-            pp = parseFloat(getattr(subject.id, 'pp')) || 0;
-            gp = parseFloat(getattr(subject.id, 'gp')) || 0;
-            ep = parseFloat(getattr(subject.id, 'ep')) || 0;
-            sp = parseFloat(getattr(subject.id, 'sp')) || 0;
-            cp = parseFloat(getattr(subject.id, 'cp')) || 0;
-            total = Math.round((
-              (pp * 10)
-              + (ep * 0.5)
-              + gp
-              + (sp / 10)
-              + (cp / 100)
-            ) * 10000) / 10000;
-            partytotal = total + partytotal;
-          });
-          partytotal = Math.round(partytotal * 100, 0) / 100;
-        }
+        partymember = subjects.length;
+        subjects.forEach((subject) => {
+          if (!subject) {
+            sendChat(scname, `/w ${msg.who} Subject is undefined.`);
+            sendChat(scname, `/w gm ${msg.who} attempted a command, but Subject was undefined.`);
+            return;
+          }
+          partycounter += 1;
+          name = getAttrByName(subject.id, 'character_name');
+          pp = parseFloat(getattr(subject.id, 'pp')) || 0;
+          gp = parseFloat(getattr(subject.id, 'gp')) || 0;
+          ep = parseFloat(getattr(subject.id, 'ep')) || 0;
+          sp = parseFloat(getattr(subject.id, 'sp')) || 0;
+          cp = parseFloat(getattr(subject.id, 'cp')) || 0;
+          total = Math.round((
+            (pp * 10)
+            + (ep * 0.5)
+            + gp
+            + (sp / 10)
+            + (cp / 100)
+          ) * 10000) / 10000;
+          partytotal = total + partytotal;
+        });
+        partytotal = Math.round(partytotal * 100, 0) / 100;
 
         // Merge a player's coin into the densest possible
         if (argTokens.includes('-merge') || argTokens.includes('-m')) {
@@ -1797,11 +1826,10 @@ on('ready', () => {
             if (!source || source === 'null') {
               source = '';
               gmNotes = '';
-            }
-            else if(source.includes(gmNotesHeaderString)) {
+            } else if (source.includes(gmNotesHeaderString)) {
               // Parse the GM Notes
               gmNotes = parseGmNotes(source);
-              log('GM Notes' + gmNotes);
+              log(`GM Notes: ${gmNotes}`);
               if (gmNotes) {
                 log('gmnotes exist');
                 if (gmNotes.CashMaster) {
@@ -1831,7 +1859,7 @@ on('ready', () => {
             const shopTemplate = {
               CashMaster: {
                 Shop: shop,
-              }
+              },
             };
             
             const parseableStart = source.indexOf(gmNotesHeaderString);
@@ -1921,21 +1949,18 @@ on('ready', () => {
                 const shop = gmNotes.CashMaster.Shop;
                 if (shop) {
                   const items = shop.Items;
-                  log('Items: ' + JSON.stringify(items));
                   if (items) {
+                    log(`Items: ${JSON.stringify(items)}`);
                     if (items.length > 0) {
-                      log('Item Name: ' + itemName);
                       const itemIndex = items.map(i => i.Name).indexOf(itemName);
-                      log('Item Index: ' + itemIndex);
                       if (itemIndex === -1) {
                         sendChat(scname, '/w gm Item does not exist');
                         return;
                       }
                       
                       if (param === 'DELETE' && paramValue === 'YES') {
-                        items.splice(itemIndex,1);
-                      }
-                      else {
+                        items.splice(itemIndex, 1);
+                      } else {
                         const item = items[itemIndex];
                         log(`Item: ${JSON.stringify(item)}`);
                         switch (param) {
@@ -1973,7 +1998,6 @@ on('ready', () => {
                       setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
                       sendChat(scname, '/w gm Item Updating...');
                       setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
-                      
                     }
                   }
                 }
@@ -2010,7 +2034,7 @@ on('ready', () => {
                 if (gmNotes.CashMaster.Shop) {
                   const shop = gmNotes.CashMaster.Shop;
                   if (shop.Items) {
-                    let items = shop.Items;
+                    const items = shop.Items;
                     items.push({
                       Name: itemName,
                       Price: price,
