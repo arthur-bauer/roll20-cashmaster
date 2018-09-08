@@ -353,6 +353,19 @@ const getStringInQuotes = (string, quietMode = false) => {
   return string.substring(startQuote + 1, endQuote);
 };
 
+const getStringInCarets = (string, quietMode = false) => {
+  const scname = 'CashMaster';
+  const startQuote = string.indexOf('^');
+  const endQuote = string.lastIndexOf('^');
+  if (startQuote >= endQuote) {
+    if (!quietMode) {
+      sendChat(scname, `**ERROR:** Carets must be paired.`);
+    }
+    return null;
+  }
+  return string.substring(startQuote + 1, endQuote);
+};
+
 const getDefaultCharNameFromPlayer = (playerid) => {
   const defaultName = state.CashMaster.DefaultCharacterNames[playerid];
   if (!defaultName) {
@@ -456,7 +469,12 @@ on('ready', () => {
       tagList.forEach((param) => {
         if (param.startsWith('S ')) {
           const subjectNameList = getStringInQuotes(param);
-          const subjectNames = subjectNameList.split(',');
+          let subjectNames = [];
+          if (subjectNameList.indexOf('^') > -1) {
+            subjectNames = subjectNameList.split('^');
+          } else {
+            subjectNames = subjectNameList.split(',');
+          }
           subjectNames.forEach((subjectName) => {
             if (subjectName.length === 0) {
               throw new ParseException('Empty string subject provided!');
@@ -469,7 +487,12 @@ on('ready', () => {
           });
         } else if (param.startsWith('T ')) {
           const targetNameList = getStringInQuotes(param);
-          const targetNames = targetNameList.split(',');
+          let targetNames = [];
+          if (targetNameList.indexOf('^') > -1) {
+            targetNames = targetNameList.split('^');
+          } else {
+            targetNames = targetNameList.split(',');
+          }
           targetNames.forEach((targetName) => {
             if (allowStringTarget) {
               targetList.push(targetName);
@@ -502,7 +525,11 @@ on('ready', () => {
         const ambiguousNameList = getStringInQuotes(subcommand, true);
         let ambiguousNames = [];
         if (ambiguousNameList !== null) {
-          ambiguousNames = ambiguousNameList.split(',');
+          if (ambiguousNameList.indexOf('^') > -1) {
+            ambiguousNames = ambiguousNameList.split('^');
+          } else {
+            ambiguousNames = ambiguousNameList.split(',');
+          }
         }
 
         const defaultName = getDefaultCharNameFromPlayer(msg.playerid);
@@ -608,7 +635,7 @@ on('ready', () => {
       // If it hasn't been reverted yet, display revert button.  Otherwise, strikethrough.
       if (!transaction.Reverted) {
         operationList.push(`-revert ${transaction.Id}`);
-        const revertOperation = `!cm ${operationList.join(';')}`;
+        const revertOperation = `!cm ${operationList.join(';;')}`;
         historyContent += `[Revert Transaction](${revertOperation})<br>`;
       }
     });
@@ -700,8 +727,14 @@ on('ready', () => {
     });
     const data = datalines.join('');
     log(`Parsed Data String: ${data}`);
-    const notesObj = JSON.parse(data);
-    return notesObj;
+    try {
+      const notesObj = JSON.parse(data);
+      return notesObj;
+    } catch (e) {
+      log(e);
+      sendChat(scname, '/w gm JSON is malformed.');
+      return null;
+    }
   };
 
   const formatShopData = (source) => {
@@ -745,7 +778,7 @@ on('ready', () => {
 
       playerShop += shopDisplay;
       gmShop += shopDisplay;
-      gmShop += '<br>[Edit](!cm -updateShop &#34;?{Shop Field|Name|Location|Appearance|Shopkeeper},?{New Field Value}&#34;)';
+      gmShop += '<br>[Edit](!cm -updateShop &#34;?{Shop Field|Name|Location|Appearance|Shopkeeper}^?{New Field Value}&#34;)';
 
       if (shop.Items) {
         const waresHeader = '<hr><h4>Wares</h4>';
@@ -754,7 +787,7 @@ on('ready', () => {
         shop.Items.forEach((item) => {
           let itemDisplay = `<br><b>${item.Name}`;
 
-          itemDisplay += item.Quantity ? `x${item.Quantity}</b>` : '</b>';
+          itemDisplay += item.Quantity && item.Quantity > 1 ? ` x${item.Quantity}</b>` : '</b>';
           itemDisplay += item.Price ? `<br><b>Price</b>: ${item.Price}` : '';
           itemDisplay += item.Weight ? `<br><b>Weight</b>: ${item.Weight}lbs` : '';
           itemDisplay += item.Description ? `<br><b>Description</b>: ${item.Description}` : '';
@@ -765,14 +798,15 @@ on('ready', () => {
           playerShop += itemDisplay;
           gmShop += itemDisplay;
 
-          if (item.Quantity > 0) {
+          if (item.Quantity > 0 && item.Price) {
             const buyButton = `[Buy](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)`;
             playerShop += buyButton;
             gmShop += buyButton;
           }
 
-          gmShop += `[Edit](!cm -updateItem &#34;${item.Name},?{Item Field|Name|Quantity|Price|Weight|Description|Modifiers|Properties},?{New field value}&#34;)`;
+          gmShop += `[Edit](!cm -updateItem &#34;${item.Name}^?{Item Field|Name|Quantity|Price|Weight|Description|Modifiers|Properties}^?{New field value}&#34;)`;
           gmShop += `[Delete](!cm -updateItem &#34;${item.Name},?{Type DELETE if you wish to delete ${item.Name}.},?{Are you absolutely sure|YES|NO}&#34;)`;
+          gmShop += `[Duplicate](!cm -updateItem &#34;${item.Name},DUPLICATE,?{Duplicate the item|YES|NO}&#34;)`;
           
           playerShop += '<br>';
           gmShop += '<br>';
@@ -782,13 +816,13 @@ on('ready', () => {
       }
       
       gmShop += '<br>[Add Item](!cm -addItem &#34;'
-        + '?{Item Name},'
-        + '?{Item Price},'
-        + '?{Item Description},'
-        + '?{Quantity},'
-        + '?{Weight},'
-        + '?{Properties.  It is okay to leave blank.  Separate multiple with a pipe character.},'
-        + '?{Modifiers.  It is okay to leave blank.  Separate multiple with a pipe character.}&#34;)';
+        + '?{Item Name}^'
+        + '?{Item Price.  Leave blank to disable Buy button.}^'
+        + '?{Item Description}^'
+        + '?{Quantity}^'
+        + '?{Weight}^'
+        + '?{Properties.  It is okay to leave blank.}^'
+        + '?{Modifiers.  It is okay to leave blank.}&#34;)';
       
       const closeDiv = '</div>}}';
       playerShop += closeDiv;
@@ -954,7 +988,7 @@ on('ready', () => {
   on('chat:message', (msg) => {
     if (msg.type !== 'api') return;
     if (msg.content.startsWith('!cm') !== true) return;
-    const subcommands = msg.content.split(';');
+    const subcommands = msg.content.split(';;');
     if (playerIsGM(msg.playerid)) {
       msg.who = msg.who.replace(' (GM)', ''); // remove the (GM) at the end of the GM name
     }
@@ -1001,7 +1035,7 @@ on('ready', () => {
             + '<br>[Transaction History](!cm -th)'
           + '<br><b>Shop Commands</b>'
             + '<br>[Show Shop of Selected](!cm -vs)'
-            + '<br>[Create Shop on Selected](!cm -makeShop &#34;?{Shop Name},?{Describe the area around the store},?{Describe the appearance of the store},?{Describe the shopkeeper}&#34;)'
+            + '<br>[Create Shop on Selected](!cm -makeShop &#34;?{Shop Name}^?{Describe the area around the store}^?{Describe the appearance of the store}^?{Describe the shopkeeper}&#34;)'
           + '<br><b>Admin Commands</b>'
             + '<br>[Compress Coins of Selected](!cm -merge)'
             + '<br>[Reallocate Coins](!cm -s ?{Will you REALLOCATE party funds evenly|Yes})'
@@ -1962,6 +1996,19 @@ on('ready', () => {
                       
                       if (param === 'DELETE' && paramValue === 'YES') {
                         items.splice(itemIndex, 1);
+                        sendChat(scname, '/w gm Item Deleting...');
+                      } else if (param === 'DUPLICATE' && paramValue === 'YES') {
+                        const item = items[itemIndex];
+                        items.push({
+                          Name: `Copy of ${item.Name}`,
+                          Price: item.Price,
+                          Description: item.Description,
+                          Quantity: item.Quantity,
+                          Weight: item.Weight,
+                          Properties: item.Properties,
+                          Modifiers: item.Modifiers,
+                        });
+                        sendChat(scname, '/w gm Item Duplicating...');
                       } else {
                         const item = items[itemIndex];
                         log(`Item: ${JSON.stringify(item)}`);
@@ -1991,6 +2038,7 @@ on('ready', () => {
                             sendChat(scname, '/w gm Invalid Item Parameter or Delete Cancelled.');
                             return;
                         }
+                        sendChat(scname, '/w gm Item Updating...');
                       }
                       const parseableStart = source.indexOf(gmNotesHeaderString);
                       const userNotes = parseableStart > -1 ? source.substr(0, parseableStart) : source;
@@ -1998,7 +2046,6 @@ on('ready', () => {
                       const formattedOutput = formatShopData(shopString);
                       const gmNoteOutput = `${userNotes}${formattedOutput}`;
                       setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
-                      sendChat(scname, '/w gm Item Updating...');
                       setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
                     }
                   }
