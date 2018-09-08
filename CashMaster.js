@@ -50,7 +50,10 @@ const recordTransaction = (type, initiator, playerEffects) => {
   log(`  Id: ${id}`);
   log(`  Type: ${type}`);
   log(`  Initiator: ${initiator}`);
-  log(`  Player Effects: ${playerEffects}`);
+  log(`  Player Effects: ${playerEffects.length}`);
+  playerEffects.forEach((effect) => {
+    log(`    ${effect.PlayerName} delta: ${effect.Delta}`);
+  });
   log(`  Timestamp: ${timestamp}`);
 
   state.CashMaster.TransactionHistory.push({
@@ -119,15 +122,16 @@ const getattr = (cid, att) => {
   }
   return '';
 };
-const setattr = (cid, att, val) => {
+
+const setattr = (charId, attrName, val) => {
   //! setattr
   const attr = findObjs({
     type: 'attribute',
-    characterid: cid,
-    name: att,
+    characterid: charId,
+    name: attrName,
   })[0];
   if (typeof attr === 'undefined' || attr == null) {
-    const attr = createObj('attribute', { name: att, characterid: cid, current: parseFloat(val) }); // eslint-disable-line no-unused-vars, no-undef, no-shadow
+    const attr = createObj('attribute', { name: attrName, characterid: charId, current: parseFloat(val) }); // eslint-disable-line no-unused-vars, no-undef, no-shadow
   } else {
     attr.setWithWorker({
       current: parseFloat(val),
@@ -376,6 +380,7 @@ on('ready', () => {
 
   const scname = 'CashMaster'; // script name
   let selectedsheet = 'OGL'; // You can set this to "5E-Shaped" if you're using the Shaped sheet
+  const gmNotesHeaderString = '<h1>GM Notes Parser</h1>';
 
   // detecting useroptions from one-click
   if (globalconfig && globalconfig.cashmaster && globalconfig.cashmaster.useroptions) {
@@ -434,7 +439,15 @@ on('ready', () => {
     const subjectList = [];
     let targetList = [];
     let currencySpecified = false;
-    const allowStringTarget = argTokens.includes('-dropWithReason') || argTokens.includes('-giveNPC');
+
+    // These commands *do* have targets, but the targets are not characters.  Instead, they are strings.
+    const allowStringTarget = argTokens.includes('-dropWithReason')
+      || argTokens.includes('-giveNPC')
+      || argTokens.includes('-buy')
+      || argTokens.includes('-makeShop')
+      || argTokens.includes('-addItem')
+      || argTokens.includes('-updateShop')
+      || argTokens.includes('-updateItem');
 
     // Wrapping in try/catch because of the forEach.  This allows us to easily escape to report errors to the user immediately.
     try {
@@ -603,10 +616,345 @@ on('ready', () => {
     sendChat(scname, historyContent);
   };
 
+  const loadPlayerAccount = (subject) => {
+    const dpp = parseFloat(getattr(subject.id, 'pp')) || 0;
+    const dgp = parseFloat(getattr(subject.id, 'gp')) || 0;
+    const dep = parseFloat(getattr(subject.id, 'ep')) || 0;
+    const dsp = parseFloat(getattr(subject.id, 'sp')) || 0;
+    const dcp = parseFloat(getattr(subject.id, 'cp')) || 0;
+    return [dpp, dgp, dep, dsp, dcp];
+  };
+
+  const setPlayerCoinPurse = (initiator, subject, subjectName, subjectAccount, subjectInitial, transactionMessage) => {
+    const subjectEffect = getPlayerEffect(subjectName, getDelta(subjectAccount, subjectInitial));
+    // Update subject account and update output
+    setattr(subject.id, 'pp', parseFloat(subjectAccount[0]));
+    setattr(subject.id, 'gp', parseFloat(subjectAccount[1]));
+    setattr(subject.id, 'ep', parseFloat(subjectAccount[2]));
+    setattr(subject.id, 'sp', parseFloat(subjectAccount[3]));
+    setattr(subject.id, 'cp', parseFloat(subjectAccount[4]));
+    recordTransaction(transactionMessage, initiator, [subjectEffect]);
+  };
+
+  // Subtracts ppa et al from the account
+  const subtractPlayerCoinsIfPossible = (subjectOutput, initiator, subject, subjectName, transactionMessage) => {
+    const retObj = {
+      Success: false,
+      Output: subjectOutput,
+    };
+
+    const subjectInitial = loadPlayerAccount(subject);
+
+    // Deep copy of subject initial account so we can create delta later
+    let subjectAccount = [
+      subjectInitial[0],
+      subjectInitial[1],
+      subjectInitial[2],
+      subjectInitial[3],
+      subjectInitial[4],
+    ];
+
+    if (ppa !== null) subjectAccount = changeMoney(subjectAccount, ppa[2]);
+    if (gpa !== null) subjectAccount = changeMoney(subjectAccount, gpa[2]);
+    if (epa !== null) subjectAccount = changeMoney(subjectAccount, epa[2]);
+    if (spa !== null) subjectAccount = changeMoney(subjectAccount, spa[2]);
+    if (cpa !== null) subjectAccount = changeMoney(subjectAccount, cpa[2]);
+
+    // Verify subject has enough to perform transfer
+    retObj.Output += `<br><b>${subjectName}</b> has `;
+    if (subjectAccount === 'ERROR: Not enough cash.') {
+      retObj.Output += 'not enough cash!';
+      return retObj;
+    }
+
+    retObj.Output += `<br> ${subjectAccount[0]}pp`;
+    retObj.Output += `<br> ${subjectAccount[1]}gp`;
+    retObj.Output += `<br> ${subjectAccount[2]}ep`;
+    retObj.Output += `<br> ${subjectAccount[3]}sp`;
+    retObj.Output += `<br> ${subjectAccount[4]}cp`;
+    setPlayerCoinPurse(initiator, subject, subjectName, subjectAccount, subjectInitial, transactionMessage);
+
+    retObj.Success = true;
+    return retObj;
+  };
+
+  const parseGmNotes = (source) => {
+    const headerExp = /<h1([^>]*)?>GM Notes Parser<\/h1>/;
+    const headerMatch = headerExp.exec(source);
+    if (headerMatch === null) {
+      sendChat(scname, '/w GM Notes do not contain parseable section.');
+      return null;
+    }
+    const headerMatchStr = headerMatch[0];
+    const headerIndex = source.indexOf(headerMatchStr);
+    if (headerIndex === -1) {
+      log('GM Parser Header Not Present');
+      return null;
+    }
+    const parseableNotes = source.substr(headerIndex + headerMatchStr.length);
+    const lines = parseableNotes.split('</p>');
+    const datalines = [];
+    lines.forEach((line) => {
+      const dataline = line.substr(line.indexOf('>') + 1);
+      datalines.push(dataline);
+    });
+    const data = datalines.join('');
+    log(`Parsed Data String: ${data}`);
+    const notesObj = JSON.parse(data);
+    return notesObj;
+  };
+
+  const formatShopData = (source) => {
+    const sourceLines = source.split('\n');
+    const outputLines = [];
+    sourceLines.forEach((line) => {
+      const spaceCount = line.search(/\S/);
+      const tabCount = spaceCount / 4;
+      const trimmedLine = line.substr(spaceCount);
+      const outputLine = `<p style="margin-left: ${tabCount * 25}px">${trimmedLine}</p>`;
+      outputLines.push(outputLine);
+    });
+    return `${gmNotesHeaderString}${outputLines.join('')}`;
+  };
+
+  const displayShop = (subject, shop, shopkeeperName) => {
+    subject.get('_defaulttoken', (tokenJSON) => {
+      let avatarTag = '';
+      if (tokenJSON) {
+        const parsedToken = JSON.parse(tokenJSON);
+        if (parsedToken) {
+          let avatar = parsedToken.imgsrc;
+
+          // strip off the ?#
+          const urlEnd = avatar.indexOf('?');
+          if (urlEnd > -1) {
+            avatar = avatar.substr(0, urlEnd);
+          }
+          avatarTag = `<img src="${avatar}" height="48" width="48"> `;
+        }
+      }
+
+      let playerShop = '';
+      let gmShop = '';
+  
+      const shopDisplay = `&{template:${rt[0]}} {{${rt[1]}=<div align="left" style="margin-left: 7px;margin-right: 7px">`
+        + `<h3>${avatarTag}${shop.Name}</h3><hr>`
+        + `<br><b>Location:</b> ${shop.Location}`
+        + `<br><b>Appearance:</b> ${shop.Appearance}`
+        + `<br><b>Shopkeeper:</b> ${shop.Shopkeeper}`;
+
+      playerShop += shopDisplay;
+      gmShop += shopDisplay;
+      gmShop += '<br>[Edit](!cm -updateShop &#34;?{Shop Field|Name|Location|Appearance|Shopkeeper},?{New Field Value}&#34;)';
+
+      if (shop.Items) {
+        const waresHeader = '<hr><h4>Wares</h4>';
+        playerShop += waresHeader;
+        gmShop += waresHeader;
+        shop.Items.forEach((item) => {
+          let itemDisplay = `<br><b>${item.Name}`;
+
+          itemDisplay += item.Quantity ? `x${item.Quantity}</b>` : '</b>';
+          itemDisplay += item.Price ? `<br><b>Price</b>: ${item.Price}` : '';
+          itemDisplay += item.Weight ? `<br><b>Weight</b>: ${item.Weight}lbs` : '';
+          itemDisplay += item.Description ? `<br><b>Description</b>: ${item.Description}` : '';
+          itemDisplay += item.Modifiers ? `<br><b>Modifiers</b>: ${item.Weight}` : '';
+          itemDisplay += item.Properties ? `<br><b>Properties</b>: ${item.Properties}` : '';
+          itemDisplay += '<br>';
+
+          playerShop += itemDisplay;
+          gmShop += itemDisplay;
+
+          if (item.Quantity > 0) {
+            const buyButton = `[Buy](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)`;
+            playerShop += buyButton;
+            gmShop += buyButton;
+          }
+
+          gmShop += `[Edit](!cm -updateItem &#34;${item.Name},?{Item Field|Name|Quantity|Price|Weight|Description|Modifiers|Properties},?{New field value}&#34;)`;
+          gmShop += `[Delete](!cm -updateItem &#34;${item.Name},?{Type DELETE if you wish to delete ${item.Name}.},?{Are you absolutely sure|YES|NO}&#34;)`;
+          
+          playerShop += '<br>';
+          gmShop += '<br>';
+        });
+      } else {
+        shop.Items = [];
+      }
+      
+      gmShop += '<br>[Add Item](!cm -addItem &#34;'
+        + '?{Item Name},'
+        + '?{Item Price},'
+        + '?{Item Description},'
+        + '?{Quantity},'
+        + '?{Weight},'
+        + '?{Properties.  It is okay to leave blank.  Separate multiple with a pipe character.},'
+        + '?{Modifiers.  It is okay to leave blank.  Separate multiple with a pipe character.}&#34;)';
+      
+      const closeDiv = '</div>}}';
+      playerShop += closeDiv;
+      gmShop += closeDiv;
+      
+      sendChat(shopkeeperName, playerShop);
+      sendChat(shopkeeperName, `/w gm ${gmShop}`);
+    });
+  };
+
+  const oglItem = {
+    // ==============================================================================
+    // ITEM_ITEM_PREFIX + ROW_ID + ATTR_SUFFIX============================================
+    // Prefix
+    ITEM_PREFIX: 'repeating_inventory_',
+    ATTACK_PREFIX: 'repeating_attack_',
+    RESOURCE_PREFIX: 'repeating_resource_',
+
+    // Suffixes
+    COUNT_SUFFIX: '_itemcount',
+    COUNT_INDEX: 0,
+    NAME_SUFFIX: '_itemname',
+    NAME_INDEX: 1,
+    WEIGHT_SUFFIX: '_itemweight',
+    WEIGHT_INDEX: 2,
+    EQUIPPED_SUFFIX: '_equipped',
+    EQUIPPED_INDEX: 3, // Actually determines whether the item is equipped in regards to other attributes (AC, modifiers, etc.)
+    USEASARESOURCE_SUFFIX: '_useasaresource',
+    USEASARESOURCE_INDEX: 4,
+    HASATTACK_SUFFIX: '_hasattack',
+    HASATTACK_INDEX: 5,
+    PROPERTIES_SUFFIX: '_itemproperties',
+    PROPERTIES_INDEX: 6,
+    MODIFIERS_SUFFIX: '_itemmodifiers',
+    MODIFIERS_INDEX: 7,
+    CONTENT_SUFFIX: '_itemcontent',
+    CONTENTS_INDEX: 8,
+    ATTACKID_SUFFIX: '_itemattackid',
+    ATTACKID_INDEX: 9,
+    RESOURCEID_SUFFIX: '_itemresourceid',
+    RESOURCEID_INDEX: 10,
+    INVENTORYSUBFLAG_SUFFIX: '_inventorysubflag',
+    INVENTORYSUBFLAG_INDEX: 11,
+
+    // These have to be the string equivalent, otherwise the sheet worker will not pick up the change
+    CHECKED: '1',
+    UNCHECKED: '0',
+
+    // Generate a random UUID.  Disabling eslint as this is a The Aaron utility function.
+    /* eslint-disable */
+    generateUUID: () => {
+      var a = 0;
+      var b = [];
+      return function () {
+        var c = (new Date()).getTime() + 0,
+        d = c === a;
+        a = c;
+        for (var e = new Array(8), f = 7; 0 <= f; f--) {
+          e[f] = '-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz'.charAt(c % 64);
+          c = Math.floor(c / 64);
+        }
+        c = e.join('');
+        if (d) {
+          for (f = 11; 0 <= f && 63 === b[f]; f--) {
+            b[f] = 0;
+          }
+          b[f]++;
+        } else {
+          for (f = 0; 12 > f; f++) {
+            b[f] = Math.floor(64 * Math.random());
+          }
+        }
+        for (f = 0; 12 > f; f++) {
+          c += '-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz'.charAt(b[f]);
+        }
+        return c;
+      };
+    },
+    /* eslint-enable */
+
+    // Generate a random row ID
+    generateRowID: () => oglItem.generateUUID()().replace(/_/g, 'Z'),
+
+    // Given a row attribute
+    getRowIdFromAttribute: (attrName) => {
+      const regex = new RegExp(`${oglItem.ITEM_PREFIX}(.+?)(?:${oglItem.NAME_SUFFIX}|${oglItem.EQUIPPED_SUFFIX})`);
+      return regex.exec(attrName) ? regex.exec(attrName)[1] : '';
+    },
+    getExistingRowId: (subject, itemName) => {
+      const nameAttr = filterObjs((obj) => { // eslint-disable-line no-undef, consistent-return
+        if (obj.get('type') === 'attribute'
+          && obj.get('characterid') === subject.id
+          && obj.get('name').indexOf(oglItem.ITEM_PREFIX) !== -1
+          && obj.get('name').indexOf(oglItem.NAME_SUFFIX) !== -1
+          && obj.get('current') === itemName) {
+          log(JSON.stringify(obj));
+          return obj;
+        }
+      });
+      if (!nameAttr || nameAttr.length === 0) {
+        return null;
+      }
+      return nameAttr[0] ? oglItem.getRowIdFromAttribute(nameAttr[0].get('name')) : null;
+    },
+    getItemAttr: (subject, rowId, suffix) => {
+      const existing = findObjs({
+        _type: 'attribute',
+        characterid: subject.id,
+        name: oglItem.ITEM_PREFIX + rowId + suffix,
+      })[0];
+      
+      return existing;
+    },
+    
+    // Add or subtract to the quantity of the item
+    alterItemCount: (subject, item, rowId, modifierQuantity) => {
+      const countAttr = oglItem.getItemAttr(subject, rowId, oglItem.COUNT_SUFFIX);
+      const oldCountStr = countAttr ? countAttr.get('current') : '0';
+      const newCount = parseInt(oldCountStr, 10) + modifierQuantity;
+      countAttr.setWithWorker({ current: `${newCount}` });
+    },
+
+    // Creates an item (or increments the count if it already exists)
+    createOrIncrementItem: (subject, item) => {
+      const existingRowId = oglItem.getExistingRowId(subject, item.Name);
+      if (existingRowId !== null) {
+        oglItem.alterItemCount(subject, item, existingRowId, 1);
+      } else {
+        oglItem.createItem(subject, item);
+      }
+    },
+
+    // Creates a brand new item in an inventory
+    createItem: (subject, item) => {
+      log(`Creating new item for ${subject.id}.`);
+      const newRowId = oglItem.generateRowID();
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.COUNT_SUFFIX, '1');
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.NAME_SUFFIX, item.Name);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.WEIGHT_SUFFIX, item.Weight);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.EQUIPPED_SUFFIX, oglItem.UNCHECKED);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.USEASARESOURCE_SUFFIX, oglItem.UNCHECKED);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.HASATTACK_SUFFIX, oglItem.UNCHECKED);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.PROPERTIES_SUFFIX, item.Properties);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.MODIFIERS_SUFFIX, item.Modifiers);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.CONTENT_SUFFIX, item.Description);
+      oglItem.createItemAttr(subject.id, newRowId, oglItem.INVENTORYSUBFLAG_SUFFIX, oglItem.UNCHECKED);
+      log('Done creating.');
+    },
+
+    // Creates an item attribute (there are several per item)
+    createItemAttr: (charId, rowId, suffix, value) => {
+      const attrName = `${oglItem.ITEM_PREFIX}${rowId}${suffix}`;
+      log(attrName);
+      createObj('attribute', {// eslint-disable-line no-undef
+        characterid: charId,
+        name: attrName,
+        current: value,
+        max: '',
+      });
+    },
+  };
+  
   on('chat:message', (msg) => {
-    const subcommands = msg.content.split(';');
     if (msg.type !== 'api') return;
     if (msg.content.startsWith('!cm') !== true) return;
+    const subcommands = msg.content.split(';');
     msg.who = msg.who.replace(" (GM)",""); // remove the (GM) at the end of the GM name
     // Initialize State object
     initCM();
@@ -649,6 +997,9 @@ on('ready', () => {
             + '<br>[Bill Each Selected](!cm -sub ?{Currency to Bill})'
             + '<br>[Split Among Selected](!cm -loot ?{Amount to Split})'
             + '<br>[Transaction History](!cm -th)'
+          + '<br><b>Shop Commands</b>'
+            + '<br>[Show Shop of Selected](!cm -vs)'
+            + '<br>[Create Shop on Selected](!cm -makeShop &#34;?{Shop Name},?{Describe the area around the store},?{Describe the appearance of the store},?{Describe the shopkeeper}&#34;)'
           + '<br><b>Admin Commands</b>'
             + '<br>[Compress Coins of Selected](!cm -merge)'
             + '<br>[Reallocate Coins](!cm -s ?{Will you REALLOCATE party funds evenly|Yes})'
@@ -694,6 +1045,43 @@ on('ready', () => {
       if (subjects.length === 0) {
         log('Invalid Input (no subjects).  Aborting.');
         sendChat(scname, `/w gm **ERROR:** No subject provided by ${msg.who} in command ${subcommand}.`);
+        return;
+      }
+
+      // Display the shop.  The GM is presented with both the normal shop and the editable shop
+      if (argTokens.includes('-viewShop') || argTokens.includes('-vs')) {
+        subjects.forEach((subject) => {
+          if (!subject) {
+            sendChat(scname, `/w ${msg.who} Subject is undefined.  Token may not have assigned character sheet.`);
+            sendChat(scname, `/w gm ${msg.who} attempted a command, but Subject was undefined.`);
+            return;
+          }
+          subject.get('gmnotes', (source) => {
+            log(`Existing Notes: ${source}`);
+
+            // If you haven't selected anything, source will literally be the following string: 'null'
+            if (source && source !== 'null') {
+              // Parse the GM Notes
+              const gmNotes = parseGmNotes(source);
+              if (!gmNotes) {
+                sendChat(scname, '/w gm Target does not possess a GM Notes block to parse.');
+                return;
+              }
+
+              // Display Shop to Users
+              if (gmNotes.CashMaster) {
+                if (gmNotes.CashMaster.Shop) {
+                  const shop = gmNotes.CashMaster.Shop;
+                  displayShop(subject, shop, getAttrByName(subject.id, 'character_name'));
+                  return;
+                }
+              }
+              sendChat(scname, `/w ${msg.who} Unable to find Shop objects.`);
+            } else {
+              sendChat(scname, `/w ${msg.who} Please select a valid shop.`);
+            }
+          });
+        });
         return;
       }
 
@@ -927,94 +1315,131 @@ on('ready', () => {
       }
 
       // Drop Currency or Give it to an NPC
-      if (argTokens.includes('-dropWithReason') || argTokens.includes('-giveNPC')) {
+      if (argTokens.includes('-dropWithReason') || argTokens.includes('-giveNPC') || argTokens.includes('-buy')) {
         subjects.forEach((subject) => {
           output = '';
           let transactionOutput = '';
-          let subjectOutput = '';
           const subjectName = getAttrByName(subject.id, 'character_name');
           const reason = targets[0];
-          // Verify subject has enough to perform transfer
-          // Check if the player attempted to steal from another and populate the transaction data
-          transactionOutput += '<br><b>Transaction Data</b>';
-          if (ppa !== null) {
-            const val = parseFloat(ppa[3]);
-            transactionOutput += `<br> ${ppa[2]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
-              return;
-            }
-          }
-          if (gpa !== null) {
-            const val = parseFloat(gpa[3]);
-            transactionOutput += `<br> ${gpa[2]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
-              return;
-            }
-          }
-          if (epa !== null) {
-            const val = parseFloat(epa[3]);
-            transactionOutput += `<br> ${epa[2]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
-              return;
-            }
-          }
-          if (spa !== null) {
-            const val = parseFloat(spa[3]);
-            transactionOutput += `<br> ${spa[2]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
-              return;
-            }
-          }
-          if (cpa !== null) {
-            const val = parseFloat(cpa[3]);
-            transactionOutput += `<br> ${cpa[2]}`;
-            if (val < 0 && !playerIsGM(msg.playerid)) {
-              sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
-              return;
-            }
-          }
 
-          // Load subject's existing account
-          const dpp = parseFloat(getattr(subject.id, 'pp')) || 0;
-          const dgp = parseFloat(getattr(subject.id, 'gp')) || 0;
-          const dep = parseFloat(getattr(subject.id, 'ep')) || 0;
-          const dsp = parseFloat(getattr(subject.id, 'sp')) || 0;
-          const dcp = parseFloat(getattr(subject.id, 'cp')) || 0;
-          const subjectInitial = [dpp, dgp, dep, dsp, dcp];
-          let subjectAccount = [dpp, dgp, dep, dsp, dcp];
+          if (argTokens.includes('-buy')) {
+            if (targets.length === 2) {
+              const shopkeeperName = targets[1];
+              log(`Attempting to purchase ${reason} from ${shopkeeperName}`);
+              const shopkeeper = getCharByAny(shopkeeperName);
+              const itemName = reason;
+              if (shopkeeper) {
+                shopkeeper.get('gmnotes', (source) => {
+                  if (source) {
+                    const gmNotes = parseGmNotes(source);
+                    if (gmNotes) {
+                      if (gmNotes.CashMaster) {
+                        if (gmNotes.CashMaster.Shop) {
+                          const shop = gmNotes.CashMaster.Shop;
+                          const item = shop.Items.find(p => p.Name === itemName);
+                          if (item) {
+                            if (item.Quantity > 0) {
+                              log(`Valid Buy Target.  Purchaser: ${subjectName}, Seller: ${shopkeeperName} of ${shop.Name}x${item.Quantity}, Item: ${itemName}`);
+                              item.Quantity -= 1;
+                              // Prepare updated notes
+                              const gmNoteString = JSON.stringify(gmNotes, null, 4);
+                              const userNotes = source.substr(0, source.indexOf(gmNotesHeaderString));
+                              log(`User Notes: ${userNotes}`);
+                              const formattedOutput = formatShopData(gmNoteString);
+                              const gmNoteOutput = `${userNotes}${formattedOutput}`;
 
-          if (ppa !== null) subjectAccount = changeMoney(subjectAccount, ppa[2]);
-          if (gpa !== null) subjectAccount = changeMoney(subjectAccount, gpa[2]);
-          if (epa !== null) subjectAccount = changeMoney(subjectAccount, epa[2]);
-          if (spa !== null) subjectAccount = changeMoney(subjectAccount, spa[2]);
-          if (cpa !== null) subjectAccount = changeMoney(subjectAccount, cpa[2]);
+                              // The coin parser requires space at the beginning to prevent overlap with strange player names
+                              populateCoinContents(` ${item.Price}`);
+                              
+                              if (ppa !== null) {
+                                transactionOutput += `<br> ${ppa[2]}`;
+                              }
+                              if (gpa !== null) {
+                                transactionOutput += `<br> ${gpa[2]}`;
+                              }
+                              if (epa !== null) {
+                                transactionOutput += `<br> ${epa[2]}`;
+                              }
+                              if (spa !== null) {
+                                transactionOutput += `<br> ${spa[2]}`;
+                              }
+                              if (cpa !== null) {
+                                transactionOutput += `<br> ${cpa[2]}`;
+                              }
 
-          // Verify subject has enough to perform transfer
-          subjectOutput += `<br><b>${subjectName}</b> has `;
-          if (subjectAccount === 'ERROR: Not enough cash.') {
-            subjectOutput += 'not enough cash!';
+                              // Verify subject has enough to perform transfer
+                              // Check if the player attempted to steal from another and populate the transaction data
+                              transactionOutput += '<br><b>Transaction Data</b>';
+
+                              const subtractResult = subtractPlayerCoinsIfPossible('', msg.who, subject, subjectName, `Buy ${item.Name} from ${shop.Name}`);
+                              if (subtractResult.Success) {
+                                // Schedule major write operations
+                                setTimeout(() => { shopkeeper.set('gmnotes', gmNoteOutput); }, 0);
+                                setTimeout(() => { oglItem.createOrIncrementItem(subject, item); }, 0);
+                              }
+
+                              sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subtractResult.Output}}}`);
+                              sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subtractResult.Output}}}`);
+                              setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                });
+              }
+            }
           } else {
-            const subjectEffect = getPlayerEffect(subjectName, getDelta(subjectAccount, subjectInitial));
+            if (ppa !== null) {
+              const val = parseFloat(ppa[3]);
+              transactionOutput += `<br> ${ppa[2]}`;
+              if (val < 0 && !playerIsGM(msg.playerid)) {
+                sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+                return;
+              }
+            }
+            if (gpa !== null) {
+              const val = parseFloat(gpa[3]);
+              transactionOutput += `<br> ${gpa[2]}`;
+              if (val < 0 && !playerIsGM(msg.playerid)) {
+                sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+                return;
+              }
+            }
+            if (epa !== null) {
+              const val = parseFloat(epa[3]);
+              transactionOutput += `<br> ${epa[2]}`;
+              if (val < 0 && !playerIsGM(msg.playerid)) {
+                sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+                return;
+              }
+            }
+            if (spa !== null) {
+              const val = parseFloat(spa[3]);
+              transactionOutput += `<br> ${spa[2]}`;
+              if (val < 0 && !playerIsGM(msg.playerid)) {
+                sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+                return;
+              }
+            }
+            if (cpa !== null) {
+              const val = parseFloat(cpa[3]);
+              transactionOutput += `<br> ${cpa[2]}`;
+              if (val < 0 && !playerIsGM(msg.playerid)) {
+                sendChat(scname, `**ERROR:** ${msg.who} tried to steal.`);
+                return;
+              }
+            }
 
-            // Update subject account and update output
-            setattr(subject.id, 'pp', parseFloat(subjectAccount[0]));
-            setattr(subject.id, 'gp', parseFloat(subjectAccount[1]));
-            setattr(subject.id, 'ep', parseFloat(subjectAccount[2]));
-            setattr(subject.id, 'sp', parseFloat(subjectAccount[3]));
-            setattr(subject.id, 'cp', parseFloat(subjectAccount[4]));
-            subjectOutput += `<br> ${subjectAccount[0]}pp`;
-            subjectOutput += `<br> ${subjectAccount[1]}gp`;
-            subjectOutput += `<br> ${subjectAccount[2]}ep`;
-            subjectOutput += `<br> ${subjectAccount[3]}sp`;
-            subjectOutput += `<br> ${subjectAccount[4]}cp`;
-
-            recordTransaction('Transfer to NPC', msg.who, [subjectEffect]);
+            // Verify subject has enough to perform transfer
+            // Check if the player attempted to steal from another and populate the transaction data
+            transactionOutput += '<br><b>Transaction Data</b>';
+            const subtractResult = subtractPlayerCoinsIfPossible('', msg.who, subject, subjectName, 'Transfer to NPC');
+            
+            sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subtractResult.Output}}}`);
+            sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subtractResult.Output}}}`);
           }
-
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subjectOutput}}}`);
           sendChat(scname, `/w "${subjectName}" &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subjectOutput}}}`);
         });
@@ -1067,27 +1492,30 @@ on('ready', () => {
         let partyGoldOperation = false;
 
         // Create party gold output string
-        if (subjects) {
-          partymember = subjects.length;
-          subjects.forEach((subject) => {
-            partycounter += 1;
-            name = getAttrByName(subject.id, 'character_name');
-            pp = parseFloat(getattr(subject.id, 'pp')) || 0;
-            gp = parseFloat(getattr(subject.id, 'gp')) || 0;
-            ep = parseFloat(getattr(subject.id, 'ep')) || 0;
-            sp = parseFloat(getattr(subject.id, 'sp')) || 0;
-            cp = parseFloat(getattr(subject.id, 'cp')) || 0;
-            total = Math.round((
-              (pp * 10)
-              + (ep * 0.5)
-              + gp
-              + (sp / 10)
-              + (cp / 100)
-            ) * 10000) / 10000;
-            partytotal = total + partytotal;
-          });
-          partytotal = Math.round(partytotal * 100, 0) / 100;
-        }
+        partymember = subjects.length;
+        subjects.forEach((subject) => {
+          if (!subject) {
+            sendChat(scname, `/w ${msg.who} Subject is undefined.`);
+            sendChat(scname, `/w gm ${msg.who} attempted a command, but Subject was undefined.`);
+            return;
+          }
+          partycounter += 1;
+          name = getAttrByName(subject.id, 'character_name');
+          pp = parseFloat(getattr(subject.id, 'pp')) || 0;
+          gp = parseFloat(getattr(subject.id, 'gp')) || 0;
+          ep = parseFloat(getattr(subject.id, 'ep')) || 0;
+          sp = parseFloat(getattr(subject.id, 'sp')) || 0;
+          cp = parseFloat(getattr(subject.id, 'cp')) || 0;
+          total = Math.round((
+            (pp * 10)
+            + (ep * 0.5)
+            + gp
+            + (sp / 10)
+            + (cp / 100)
+          ) * 10000) / 10000;
+          partytotal = total + partytotal;
+        });
+        partytotal = Math.round(partytotal * 100, 0) / 100;
 
         // Merge a player's coin into the densest possible
         if (argTokens.includes('-merge') || argTokens.includes('-m')) {
@@ -1382,6 +1810,258 @@ on('ready', () => {
           partyGoldOperation = true;
         }
 
+        // Create a new shop stub
+        if (argTokens.includes('-makeShop')) {
+          const subject = subjects[0];
+          if (targets.length !== 4) {
+            sendChat(scname, '/w gm Invalid Shop Creation Command');
+          }
+          const shopName = targets[0];
+          const locale = targets[1];
+          const appearance = targets[2];
+          const shopkeeper = targets[3];
+          subject.get('gmnotes', (source) => {
+            log(`Existing Notes: ${source}`);
+            let gmNotes = '';
+            
+            // If you haven't selected anything, source will literally be the following string: 'null'
+            if (!source || source === 'null') {
+              source = '';
+              gmNotes = '';
+            } else if (source.includes(gmNotesHeaderString)) {
+              // Parse the GM Notes
+              gmNotes = parseGmNotes(source);
+              log(`GM Notes: ${gmNotes}`);
+              if (gmNotes) {
+                log('gmnotes exist');
+                if (gmNotes.CashMaster) {
+                  log('cm exists');
+                  if (gmNotes.CashMaster.Shop) {
+                    log('Shop already exists.');
+                    sendChat(scname, '/w gm Shop already exists.');
+                    return;
+                  }
+                }
+              }
+            }
+            
+            log('Creating new shop.');
+            log(`  Name: ${shopName}`);
+            log(`  Location: ${locale}`);
+            log(`  Appearance: ${appearance}`);
+            log(`  Shopkeeper: ${shopkeeper}`);
+            
+            const shop = {
+              Name: shopName,
+              Location: locale,
+              Appearance: appearance,
+              Shopkeeper: shopkeeper,
+              Items: [],
+            };
+            const shopTemplate = {
+              CashMaster: {
+                Shop: shop,
+              },
+            };
+            
+            const parseableStart = source.indexOf(gmNotesHeaderString);
+            const userNotes = parseableStart > -1 ? source.substr(0, parseableStart) : source;
+            const shopString = JSON.stringify(shopTemplate, null, 4);
+            const formattedOutput = formatShopData(shopString);
+            const gmNoteOutput = `${userNotes}${formattedOutput}`;
+            setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
+            sendChat(scname, `/w gm Creating new shop ${shopName}...`);
+            setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
+          });
+          return;
+        }
+        
+        // Update the specified shop field
+        if (argTokens.includes('-updateShop')) {
+          if (targets.length !== 2) {
+            sendChat(scname, '/w gm Invalid shop update command.');
+            return;
+          }
+          const param = targets[0];
+          const paramValue = targets[1];
+          
+          const subject = subjects[0];
+          subject.get('gmnotes', (source) => {
+            if (!source || source === 'null') {
+              sendChat(scname, '/w gm No shop exists.');
+              return;
+            }
+            const gmNotes = parseGmNotes(source);
+            if (gmNotes) {
+              if (gmNotes.CashMaster) {
+                const shop = gmNotes.CashMaster.Shop;
+                if (shop) {
+                  switch (param) {
+                    case 'Name':
+                      shop.Name = paramValue;
+                      break;
+                    case 'Location':
+                      shop.Location = paramValue;
+                      break;
+                    case 'Appearance':
+                      shop.Appearance = paramValue;
+                      break;
+                    case 'Shopkeeper':
+                      shop.Shopkeeper = paramValue;
+                      break;
+                    default:
+                      sendChat(scname, '/w gm Invalid Shop Parameter');
+                      return;
+                  }
+                  
+                  const parseableStart = source.indexOf(gmNotesHeaderString);
+                  const userNotes = parseableStart > -1 ? source.substr(0, parseableStart) : source;
+                  const shopString = JSON.stringify(gmNotes, null, 4);
+                  const formattedOutput = formatShopData(shopString);
+                  const gmNoteOutput = `${userNotes}${formattedOutput}`;
+                  setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
+                  sendChat(scname, '/w gm Shop Updating...');
+                  setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
+                }
+              }
+            }
+          });
+          return;
+        }
+        
+        // Edit the specified item field
+        if (argTokens.includes('-updateItem')) {
+          if (targets.length !== 3) {
+            sendChat(scname, '/w gm Invalid item update command.');
+            return;
+          }
+          const itemName = targets[0];
+          const param = targets[1];
+          const paramValue = targets[2];
+          
+          const subject = subjects[0];
+          subject.get('gmnotes', (source) => {
+            if (!source || source === 'null') {
+              sendChat(scname, '/w gm No shop exists.');
+              return;
+            }
+            const gmNotes = parseGmNotes(source);
+            if (gmNotes) {
+              if (gmNotes.CashMaster) {
+                const shop = gmNotes.CashMaster.Shop;
+                if (shop) {
+                  const items = shop.Items;
+                  if (items) {
+                    log(`Items: ${JSON.stringify(items)}`);
+                    if (items.length > 0) {
+                      const itemIndex = items.map(i => i.Name).indexOf(itemName);
+                      if (itemIndex === -1) {
+                        sendChat(scname, '/w gm Item does not exist');
+                        return;
+                      }
+                      
+                      if (param === 'DELETE' && paramValue === 'YES') {
+                        items.splice(itemIndex, 1);
+                      } else {
+                        const item = items[itemIndex];
+                        log(`Item: ${JSON.stringify(item)}`);
+                        switch (param) {
+                          case 'Name':
+                            item.Name = paramValue;
+                            break;
+                          case 'Price':
+                            item.Price = paramValue;
+                            break;
+                          case 'Description':
+                            item.Description = paramValue;
+                            break;
+                          case 'Quantity':
+                            item.Quantity = paramValue;
+                            break;
+                          case 'Weight':
+                            item.Weight = paramValue;
+                            break;
+                          case 'Properties':
+                            item.Properties = paramValue.split('|').join(', ');
+                            break;
+                          case 'Modifiers':
+                            item.Modifiers = paramValue.split('|').join(', ');
+                            break;
+                          default:
+                            sendChat(scname, '/w gm Invalid Item Parameter or Delete Cancelled.');
+                            return;
+                        }
+                      }
+                      const parseableStart = source.indexOf(gmNotesHeaderString);
+                      const userNotes = parseableStart > -1 ? source.substr(0, parseableStart) : source;
+                      const shopString = JSON.stringify(gmNotes, null, 4);
+                      const formattedOutput = formatShopData(shopString);
+                      const gmNoteOutput = `${userNotes}${formattedOutput}`;
+                      setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
+                      sendChat(scname, '/w gm Item Updating...');
+                      setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
+                    }
+                  }
+                }
+              }
+            }
+          });
+          return;
+        }
+        
+        // Add Item to Shop
+        if (argTokens.includes('-addItem')) {
+          if (targets.length !== 7) {
+            sendChat(scname, '/w gm Invalid item add command.');
+            return;
+          }
+          const subject = subjects[0];
+          
+          const itemName = targets[0];
+          const price = targets[1];
+          const desc = targets[2];
+          const quantity = targets[3];
+          const weight = targets[4];
+          const properties = targets[5].split('|').join(', ');
+          const modifiers = targets[6].split('|').join(', ');
+          
+          subject.get('gmnotes', (source) => {
+            if (!source || source === 'null') {
+              sendChat(scname, '/w gm No shop exists.');
+              return;
+            }
+            const gmNotes = parseGmNotes(source);
+            if (gmNotes) {
+              if (gmNotes.CashMaster) {
+                if (gmNotes.CashMaster.Shop) {
+                  const shop = gmNotes.CashMaster.Shop;
+                  if (shop.Items) {
+                    const items = shop.Items;
+                    items.push({
+                      Name: itemName,
+                      Price: price,
+                      Description: desc,
+                      Quantity: quantity,
+                      Weight: weight,
+                      Properties: properties,
+                      Modifiers: modifiers,
+                    });
+                    const parseableStart = source.indexOf(gmNotesHeaderString);
+                    const userNotes = parseableStart > -1 ? source.substr(0, parseableStart) : source;
+                    const shopString = JSON.stringify(gmNotes, null, 4);
+                    const formattedOutput = formatShopData(shopString);
+                    const gmNoteOutput = `${userNotes}${formattedOutput}`;
+                    setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
+                    sendChat(scname, '/w gm Adding Item...');
+                    setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
+                  }
+                }
+              }
+            }
+          });
+          return;
+        }
+        
         // Set Party to selected
         if (argTokens.includes('-setParty') || argTokens.includes('-sp')) {
           const partyList = [];
