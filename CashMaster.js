@@ -353,19 +353,6 @@ const getStringInQuotes = (string, quietMode = false) => {
   return string.substring(startQuote + 1, endQuote);
 };
 
-const getStringInCarets = (string, quietMode = false) => {
-  const scname = 'CashMaster';
-  const startQuote = string.indexOf('^');
-  const endQuote = string.lastIndexOf('^');
-  if (startQuote >= endQuote) {
-    if (!quietMode) {
-      sendChat(scname, `**ERROR:** Carets must be paired.`);
-    }
-    return null;
-  }
-  return string.substring(startQuote + 1, endQuote);
-};
-
 const getDefaultCharNameFromPlayer = (playerid) => {
   const defaultName = state.CashMaster.DefaultCharacterNames[playerid];
   if (!defaultName) {
