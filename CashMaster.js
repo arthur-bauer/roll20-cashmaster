@@ -18,6 +18,7 @@ const initCM = () => {
       DefaultCharacterNames: {},
       TransactionHistory: [],
       MaxTransactionId: 0,
+      ShopDisplayVerbose: true,
     };
   }
   if (!state.CashMaster.Party) {
@@ -447,7 +448,8 @@ on('ready', () => {
       || argTokens.includes('-makeShop')
       || argTokens.includes('-addItem')
       || argTokens.includes('-updateShop')
-      || argTokens.includes('-updateItem');
+      || argTokens.includes('-updateItem')
+      || argTokens.includes('-viewItem');
 
     // Wrapping in try/catch because of the forEach.  This allows us to easily escape to report errors to the user immediately.
     try {
@@ -737,7 +739,7 @@ on('ready', () => {
     return `${gmNotesHeaderString}${outputLines.join('')}`;
   };
 
-  const displayShop = (subject, shop, shopkeeperName) => {
+  const displayShop = (subject, shop, shopkeeperName, whisperRecipient) => {
     subject.get('_defaulttoken', (tokenJSON) => {
       let avatarTag = '';
       if (tokenJSON) {
@@ -757,65 +759,107 @@ on('ready', () => {
       let playerShop = '';
       let gmShop = '';
   
-      const shopDisplay = `&{template:${rt[0]}} {{${rt[1]}=<div align="left" style="margin-left: 7px;margin-right: 7px">`
-        + `<h3>${avatarTag}${shop.Name}</h3><hr>`
-        + `<br><b>Location:</b> ${shop.Location}`
-        + `<br><b>Appearance:</b> ${shop.Appearance}`
-        + `<br><b>Shopkeeper:</b> ${shop.Shopkeeper}`;
+      if (state.CashMaster.ShopDisplayVerbose) {
+        const shopDisplay = `&{template:${rt[0]}} {{${rt[1]}=<div align="left" style="margin-left: 7px;margin-right: 7px">`
+          + `<h3>${avatarTag}${shop.Name}</h3><hr>`
+          + `<br><b>Location:</b> ${shop.Location}`
+          + `<br><b>Appearance:</b> ${shop.Appearance}`
+          + `<br><b>Shopkeeper:</b> ${shop.Shopkeeper}`;
 
-      playerShop += shopDisplay;
-      gmShop += shopDisplay;
-      gmShop += '<br>[Edit](!cm -updateShop &#34;?{Shop Field|Name|Location|Appearance|Shopkeeper}^?{New Field Value}&#34;)';
+        playerShop += shopDisplay;
+        gmShop += shopDisplay;
+        gmShop += '<br>[Edit](!cm -updateShop &#34;?{Shop Field|Name|Location|Appearance|Shopkeeper}^?{New Field Value}&#34;)';
 
-      if (shop.Items) {
-        const waresHeader = '<hr><h4>Wares</h4>';
-        playerShop += waresHeader;
-        gmShop += waresHeader;
-        shop.Items.forEach((item) => {
-          let itemDisplay = `<br><b>${item.Name}`;
+        if (shop.Items) {
+          const waresHeader = '<hr><h4>Wares</h4>';
+          playerShop += waresHeader;
+          gmShop += waresHeader;
+          shop.Items.forEach((item) => {
+            let itemDisplay = `<br><b>${item.Name}`;
 
-          itemDisplay += item.Quantity && item.Quantity > 1 ? ` x${item.Quantity}</b>` : '</b>';
-          itemDisplay += item.Price ? `<br><b>Price</b>: ${item.Price}` : '';
-          itemDisplay += item.Weight ? `<br><b>Weight</b>: ${item.Weight}lbs` : '';
-          itemDisplay += item.Description ? `<br><b>Description</b>: ${item.Description}` : '';
-          itemDisplay += item.Modifiers ? `<br><b>Modifiers</b>: ${item.Weight}` : '';
-          itemDisplay += item.Properties ? `<br><b>Properties</b>: ${item.Properties}` : '';
-          itemDisplay += '<br>';
+            itemDisplay += item.Quantity && item.Quantity > 1 ? ` x${item.Quantity}</b>` : '</b>';
+            itemDisplay += item.Price ? `<br><b>Price</b>: ${item.Price}` : '';
+            itemDisplay += item.Weight ? `<br><b>Weight</b>: ${item.Weight}lbs` : '';
+            itemDisplay += item.Description ? `<br><b>Description</b>: ${item.Description}` : '';
+            itemDisplay += item.Modifiers ? `<br><b>Modifiers</b>: ${item.Weight}` : '';
+            itemDisplay += item.Properties ? `<br><b>Properties</b>: ${item.Properties}` : '';
+            itemDisplay += '<br>';
 
-          playerShop += itemDisplay;
-          gmShop += itemDisplay;
+            playerShop += itemDisplay;
+            gmShop += itemDisplay;
 
-          if (item.Quantity > 0 && item.Price) {
-            const buyButton = `[Buy](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)`;
-            playerShop += buyButton;
-            gmShop += buyButton;
-          }
+            if (item.Quantity > 0 && item.Price) {
+              const buyButton = `[Buy](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)`;
+              playerShop += buyButton;
+              gmShop += buyButton;
+            }
 
-          gmShop += `[Edit](!cm -updateItem &#34;${item.Name}^?{Item Field|Name|Quantity|Price|Weight|Description|Modifiers|Properties}^?{New field value}&#34;)`;
-          gmShop += `[Delete](!cm -updateItem &#34;${item.Name},?{Type DELETE if you wish to delete ${item.Name}.},?{Are you absolutely sure|YES|NO}&#34;)`;
-          gmShop += `[Duplicate](!cm -updateItem &#34;${item.Name},DUPLICATE,?{Duplicate the item|YES|NO}&#34;)`;
-          
-          playerShop += '<br>';
-          gmShop += '<br>';
-        });
+            gmShop += `[Edit](!cm -updateItem &#34;${item.Name}^?{Item Field|Name|Quantity|Price|Weight|Description|Modifiers|Properties}^?{New field value}&#34;)`;
+            gmShop += `[Delete](!cm -updateItem &#34;${item.Name},?{Type DELETE if you wish to delete ${item.Name}.},?{Are you absolutely sure|YES|NO}&#34;)`;
+            gmShop += `[Duplicate](!cm -updateItem &#34;${item.Name},DUPLICATE,?{Duplicate the item|YES|NO}&#34;)`;
+            
+            playerShop += '<br>';
+            gmShop += '<br>';
+          });
+        } else {
+          shop.Items = [];
+        }
+        
+        gmShop += '<br>[Add Item](!cm -addItem &#34;'
+          + '?{Item Name}^'
+          + '?{Item Price.  Leave blank to disable Buy button.}^'
+          + '?{Item Description}^'
+          + '?{Quantity}^'
+          + '?{Weight}^'
+          + '?{Properties.  It is okay to leave blank.}^'
+          + '?{Modifiers.  It is okay to leave blank.}&#34;)';
       } else {
-        shop.Items = [];
+        const shopDisplay = `&{template:${rt[0]}} {{${rt[1]}=<div align="left" style="margin-left: 7px;margin-right: 7px">`
+          + `<h3>${avatarTag}${shop.Name}</h3>`;
+
+        playerShop += shopDisplay;
+        gmShop += shopDisplay;
+        gmShop += '<br>[Edit](!cm -updateShop &#34;?{Shop Field|Name|Location|Appearance|Shopkeeper}^?{New Field Value}&#34;)<br>';
+
+        if (shop.Items) {
+          shop.Items.forEach((item) => {
+            const itemDisplay = `<br><b>${item.Name}</b>`
+              + `<br>[View](!cm -viewItem &#34;${item.Name},${shopkeeperName}&#34;)`;
+
+            playerShop += itemDisplay;
+            gmShop += itemDisplay;
+
+            gmShop += `[Edit](!cm -updateItem &#34;${item.Name}^?{Item Field|Name|Quantity|Price|Weight|Description|Modifiers|Properties}^?{New field value}&#34;)`;
+            gmShop += `[Delete](!cm -updateItem &#34;${item.Name},?{Type DELETE if you wish to delete ${item.Name}.},?{Are you absolutely sure|YES|NO}&#34;)`;
+            gmShop += `[Duplicate](!cm -updateItem &#34;${item.Name},DUPLICATE,?{Duplicate the item|YES|NO}&#34;)`;
+            
+            playerShop += '<br>';
+            gmShop += '<br>';
+          });
+        } else {
+          shop.Items = [];
+        }
+        
+        gmShop += '<br>[Add Item](!cm -addItem &#34;'
+          + '?{Item Name}^'
+          + '?{Item Price.  Leave blank to disable Buy button.}^'
+          + '?{Item Description}^'
+          + '?{Quantity}^'
+          + '?{Weight}^'
+          + '?{Properties.  It is okay to leave blank.}^'
+          + '?{Modifiers.  It is okay to leave blank.}&#34;)';
       }
       
-      gmShop += '<br>[Add Item](!cm -addItem &#34;'
-        + '?{Item Name}^'
-        + '?{Item Price.  Leave blank to disable Buy button.}^'
-        + '?{Item Description}^'
-        + '?{Quantity}^'
-        + '?{Weight}^'
-        + '?{Properties.  It is okay to leave blank.}^'
-        + '?{Modifiers.  It is okay to leave blank.}&#34;)';
       
       const closeDiv = '</div>}}';
       playerShop += closeDiv;
       gmShop += closeDiv;
       
-      sendChat(shopkeeperName, playerShop);
+      if (whisperRecipient !== '') {
+        sendChat(shopkeeperName, `/w ${whisperRecipient} ${playerShop}`);
+      } else {
+        sendChat(shopkeeperName, playerShop);
+      }
       sendChat(shopkeeperName, `/w gm ${gmShop}`);
     });
   };
@@ -1023,6 +1067,7 @@ on('ready', () => {
           + '<br><b>Shop Commands</b>'
             + '<br>[Show Shop of Selected](!cm -vs)'
             + '<br>[Create Shop on Selected](!cm -makeShop &#34;?{Shop Name}^?{Describe the area around the store}^?{Describe the appearance of the store}^?{Describe the shopkeeper}&#34;)'
+            + '<br>[Set Shop Verbosity](!cm -setShopVerbosity ?{Set Verbosity|High|Low})'
           + '<br><b>Admin Commands</b>'
             + '<br>[Compress Coins of Selected](!cm -merge)'
             + '<br>[Reallocate Coins](!cm -s ?{Will you REALLOCATE party funds evenly|Yes})'
@@ -1047,6 +1092,20 @@ on('ready', () => {
           tx.Reverted = true;
           const sender = msg.who;
           printTransactionHistory(sender);
+          return;
+        }
+
+        if (argTokens.includes('-setShopVerbosity')) {
+          const result = argTokens[2];
+          if (result === 'High') {
+            state.CashMaster.ShopDisplayVerbose = true;
+            sendChat(scname, '/w gm Updated Verbosity Setting: high');
+          } else if (result === 'Low') {
+            state.CashMaster.ShopDisplayVerbose = false;
+            sendChat(scname, '/w gm Updated Verbosity Setting: low');
+          } else {
+            sendChat(scname, '/w gm Invalid Verbosity Setting');
+          }
           return;
         }
       }
@@ -1095,7 +1154,7 @@ on('ready', () => {
               if (gmNotes.CashMaster) {
                 if (gmNotes.CashMaster.Shop) {
                   const shop = gmNotes.CashMaster.Shop;
-                  displayShop(subject, shop, getAttrByName(subject.id, 'character_name'));
+                  displayShop(subject, shop, getAttrByName(subject.id, 'character_name'), '');
                   return;
                 }
               }
@@ -1337,6 +1396,48 @@ on('ready', () => {
         return;
       }
 
+      // Displays item details to the user
+      if (argTokens.includes('-viewItem')) {
+        if (targets.length === 2) {
+          const itemName = targets[0];
+          const shopkeeperName = targets[1];
+          const shopkeeper = getCharByAny(shopkeeperName);
+          if (shopkeeper) {
+            shopkeeper.get('gmnotes', (source) => {
+              if (source) {
+                const gmNotes = parseGmNotes(source);
+                if (gmNotes) {
+                  if (gmNotes.CashMaster) {
+                    if (gmNotes.CashMaster.Shop) {
+                      const shop = gmNotes.CashMaster.Shop;
+                      const item = shop.Items.find(p => p.Name === itemName);
+                      if (item) {
+                        let itemDisplay = `&{template:${rt[0]}} {{${rt[1]}=<div align="left" style="margin-left: 7px;margin-right: 7px">`
+                          + `<h3>${item.Name}</h3><hr>`;
+                        itemDisplay += item.Quantity && item.Quantity > 1 ? `<b>Stock</b>: ${item.Quantity}` : '<b>Stock</b>: None Available';
+                        itemDisplay += item.Price ? `<br><b>Price</b>: ${item.Price}` : '';
+                        itemDisplay += item.Weight ? `<br><b>Weight</b>: ${item.Weight}lbs` : '';
+                        itemDisplay += item.Description ? `<br><b>Description</b>: ${item.Description}` : '';
+                        itemDisplay += item.Modifiers ? `<br><b>Modifiers</b>: ${item.Weight}` : '';
+                        itemDisplay += item.Properties ? `<br><b>Properties</b>: ${item.Properties}` : '';
+                        itemDisplay += '<br>';
+                        if (item.Quantity > 0 && item.Price) {
+                          itemDisplay += `[Buy for ${item.Price}](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)`;
+                        }
+                        itemDisplay += '</div>}}';
+
+                        sendChat(scname, `/w ${msg.who} ${itemDisplay}`);
+                      }
+                    }
+                  }
+                }
+              }
+            });
+          }
+        }
+        return;
+      }
+
       // Drop Currency or Give it to an NPC
       if (argTokens.includes('-dropWithReason') || argTokens.includes('-giveNPC') || argTokens.includes('-buy')) {
         subjects.forEach((subject) => {
@@ -1403,7 +1504,7 @@ on('ready', () => {
 
                               sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subtractResult.Output}}}`);
                               sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subtractResult.Output}}}`);
-                              setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
+                              setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'), subjectName);
                             }
                           }
                         }
@@ -1892,7 +1993,7 @@ on('ready', () => {
             const gmNoteOutput = `${userNotes}${formattedOutput}`;
             setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
             sendChat(scname, `/w gm Creating new shop ${shopName}...`);
-            setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
+            setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'), '');
           });
           return;
         }
@@ -1942,7 +2043,7 @@ on('ready', () => {
                   const gmNoteOutput = `${userNotes}${formattedOutput}`;
                   setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
                   sendChat(scname, '/w gm Shop Updating...');
-                  setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
+                  setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'), '');
                 }
               }
             }
@@ -2033,7 +2134,7 @@ on('ready', () => {
                       const formattedOutput = formatShopData(shopString);
                       const gmNoteOutput = `${userNotes}${formattedOutput}`;
                       setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
-                      setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
+                      setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'), '');
                     }
                   }
                 }
@@ -2087,7 +2188,7 @@ on('ready', () => {
                     const gmNoteOutput = `${userNotes}${formattedOutput}`;
                     setTimeout(() => { subject.set('gmnotes', gmNoteOutput); }, 0);
                     sendChat(scname, '/w gm Adding Item...');
-                    setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'));
+                    setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'), '');
                   }
                 }
               }
