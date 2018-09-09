@@ -39,7 +39,7 @@ A character has a tracked account if it has discrete values for its saved coins.
 ### Shop Commands
 
 - `!cm -viewShop` or `!cm -vs` will display the shop data of the selected token to all players.  The GM is presented with both the player view and the edit view.
-- `!cm -viewItem "[item name]^[shopkeeper name]"` will display the details of a particular item from the specified shopkeeper.  This is used when the GM sets verbosity to Low.
+- `!cm -viewItem "[item name]^[shopkeeper name]"` will display the details of a particular item from the specified shopkeeper.  This is used when the GM sets verbosity to low.
 - `!cm -buy "[item name]^[shopkeeper name]"` will attempt to purchase the named item from the named shopkeeper.  If you have sufficient funds, the funds will be removed and you will be presented with a purchase message.  If you are using the OGL character sheet, you will also find it transferred into your inventory.
 
 ## GM Commands
