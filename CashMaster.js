@@ -380,7 +380,7 @@ on('ready', () => {
   */
 
   const scname = 'CashMaster'; // script name
-  let selectedsheet = 'OGL'; // You can set this to "5E-Shaped" if you're using the Shaped sheet
+  let selectedsheet = 'OGL';
   const gmNotesHeaderString = '<h1>GM Notes Parser</h1>';
 
   // detecting useroptions from one-click
@@ -390,8 +390,6 @@ on('ready', () => {
   let rt = '';
   if (selectedsheet === 'OGL') {
     rt = ['desc', 'desc'];
-  } else if (selectedsheet === '5E-Shaped') {
-    rt = ['5e-shaped', 'text'];
   } else {
     rt = ['default', `name=${scname} }}{{note`];
   }

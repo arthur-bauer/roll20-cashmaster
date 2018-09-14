@@ -1,6 +1,6 @@
 # CashMaster
 
-A currency management script for the D&D 5e OGL and 5e Shaped sheets on Roll20.net.
+A currency management script for the D&D 5e OGL sheets on Roll20.net.
 
 Please use `!cm` for inline help and examples.
 
@@ -15,12 +15,11 @@ Please use `!cm` for inline help and examples.
 
 ### GM Setup
 
-1. Set the character sheet setting (`OGL`, `5E-Shaped`, or `other`).
-2. Create a macro bar button for the command `!cm -menu`
-3. Press the CashMaster button you just created.  It will display a menu in the chat log.
-4. Select the character tokens of ALL party members and companion NPCs.  Do not select pets or mounts unless the party considers them an equal member of the party (and thus should be a valid recipient for `-loot` and similar commands).  Such creatures must have full character sheets with currency fields.
-5. Press the chat UI button titled Set Party to Selected.
-6. For each shopkeeper, press the [Show Shop on Selected] button in the menu.  The shopkeeper must have a character sheet and the token must point to it.
+1. Create a macro bar button for the command `!cm -menu`
+2. Press the CashMaster button you just created.  It will display a menu in the chat log.
+3. Select the character tokens of ALL party members and companion NPCs.  Do not select pets or mounts unless the party considers them an equal member of the party (and thus should be a valid recipient for `-loot` and similar commands).  Such creatures must have full character sheets with currency fields.
+4. Press the chat UI button titled Set Party to Selected.
+5. For each shopkeeper, press the [Show Shop on Selected] button in the menu.  The shopkeeper must have a character sheet and the token must point to it.
 
 ## Player Commands
 
@@ -40,7 +39,7 @@ A character has a tracked account if it has discrete values for its saved coins.
 ### Shop Commands
 
 - `!cm -viewShop` or `!cm -vs` will display the shop data of the selected token to all players.  The GM is presented with both the player view and the edit view.
-- `!cm -viewItem "[item name]^[shopkeeper name]"` will display the details of a particular item from the specified shopkeeper.  This is used when the GM sets verbosity to Low.
+- `!cm -viewItem "[item name]^[shopkeeper name]"` will display the details of a particular item from the specified shopkeeper.  This is used when the GM sets verbosity to low.
 - `!cm -buy "[item name]^[shopkeeper name]"` will attempt to purchase the named item from the named shopkeeper.  If you have sufficient funds, the funds will be removed and you will be presented with a purchase message.  If you are using the OGL character sheet, you will also find it transferred into your inventory.
 
 ## GM Commands
