@@ -637,16 +637,34 @@ on('ready', () => {
     sendChat(scname, historyContent);
   };
 
-  const loadAccount = (subject) => {
-    if (state.CashMaster.Sheet === '5E-shaped') {
-      return shapedItem.loadAccount(subject);
+  // Debug function
+  const printAccount = (account) => {
+    if (!account) {
+      log('PRINT ACCOUNT: Account does not exist!');
+      return;
     }
-    const dpp = parseFloat(getattr(subject.id, 'pp')) || 0;
-    const dgp = parseFloat(getattr(subject.id, 'gp')) || 0;
-    const dep = parseFloat(getattr(subject.id, 'ep')) || 0;
-    const dsp = parseFloat(getattr(subject.id, 'sp')) || 0;
-    const dcp = parseFloat(getattr(subject.id, 'cp')) || 0;
-    return [dpp, dgp, dep, dsp, dcp];
+    if (account.length !== 5) {
+      log(`PRINT ACCOUNT: Account Malformed: ${account}`);
+      return;
+    }
+
+    log(`PRINT ACCOUNT: ${account[0]}pp ${account[1]}gp ${account[2]}ep ${account[3]}sp ${account[4]}cp`);
+  };
+
+  const loadAccount = (subject) => {
+    let account = '';
+    if (state.CashMaster.Sheet === '5E-Shaped') {
+      account = shapedItem.loadAccount(subject);
+    } else {
+      account = [
+        parseFloat(getattr(subject.id, 'pp')) || 0,
+        parseFloat(getattr(subject.id, 'gp')) || 0,
+        parseFloat(getattr(subject.id, 'ep')) || 0,
+        parseFloat(getattr(subject.id, 'sp')) || 0,
+        parseFloat(getattr(subject.id, 'cp')) || 0
+      ];
+    };
+    return account;
   };
 
   const saveAccount = (subject, account) => {
@@ -1385,11 +1403,11 @@ on('ready', () => {
               if (cpa !== null) targetAccount[4] += parseFloat(cpa[3]);
 
               targetOutput += `<br><b>${targetName}</b> has `;
-              targetOutput += `<br> <em style='color:blue;'>${tpp}pp</em>`;
-              targetOutput += `<br> <em style='color:orange;'>${tgp}gp</em>`;
-              targetOutput += `<br> <em style='color:silver;'>${tep}ep</em>`;
-              targetOutput += `<br> <em style='color:grey;'>${tsp}sp</em>`;
-              targetOutput += `<br> <em style='color:brown;'>${tcp}cp</em>`;
+              targetOutput += `<br> <em style='color:blue;'>${targetAccount[0]}pp</em>`;
+              targetOutput += `<br> <em style='color:orange;'>${targetAccount[1]}gp</em>`;
+              targetOutput += `<br> <em style='color:silver;'>${targetAccount[2]}ep</em>`;
+              targetOutput += `<br> <em style='color:grey;'>${targetAccount[3]}sp</em>`;
+              targetOutput += `<br> <em style='color:brown;'>${targetAccount[4]}cp</em>`;
 
               saveAccountsAndTransaction(subject, [subject, target], [subjectName, targetName], [subjectAccount, targetAccount], [subjectInitial, targetInitial], 'Transfer to PC');
             }
