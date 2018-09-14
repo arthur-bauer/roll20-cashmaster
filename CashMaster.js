@@ -1486,18 +1486,14 @@ on('ready', () => {
             }
 
             // Load target's existing account
-            const tpp = parseFloat(getattr(target.id, 'pp')) || 0;
-            const tgp = parseFloat(getattr(target.id, 'gp')) || 0;
-            const tep = parseFloat(getattr(target.id, 'ep')) || 0;
-            const tsp = parseFloat(getattr(target.id, 'sp')) || 0;
-            const tcp = parseFloat(getattr(target.id, 'cp')) || 0;
+            const targetAccount = loadAccount(target);
 
             targetOutput += `<hr><b>Current Funds of ${targetName}</b>`;
-            targetOutput += `<br> ${tpp}pp`;
-            targetOutput += `<br> ${tgp}gp`;
-            targetOutput += `<br> ${tep}ep`;
-            targetOutput += `<br> ${tsp}sp`;
-            targetOutput += `<br> ${tcp}cp`;
+            targetOutput += `<br> ${targetAccount[0]}pp`;
+            targetOutput += `<br> ${targetAccount[1]}gp`;
+            targetOutput += `<br> ${targetAccount[2]}ep`;
+            targetOutput += `<br> ${targetAccount[3]}sp`;
+            targetOutput += `<br> ${targetAccount[4]}cp`;
             sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Invoice Report</b><br>${subjectName}>${targetName}</b><hr>${transactionOutput}${targetOutput}}}`);
             sendChat(scname, `/w "${msg.who}" &{template:${rt[0]}} {{${rt[1]}=<b>Invoice Sent to ${targetName}</b><hr>${transactionOutput}}}`);
             sendChat(scname, `/w "${targetName}" &{template:${rt[0]}} {{${rt[1]}=<b>Invoice Received from ${subjectName}</b><hr>${transactionOutput}${targetOutput}<hr>[Pay](!cm -transfer -S &#34;${targetName}&#34; -T &#34;${subjectName}&#34; -C &#34;${invoiceAmount}&#34;)}}`);
@@ -1765,39 +1761,16 @@ on('ready', () => {
           subjects.forEach((subject) => {
             // Load player's existing account
             const subjectName = getAttrByName(subject.id, 'character_name');
-            const playerAccount = [
-              (parseFloat(getattr(subject.id, 'pp')) || 0),
-              (parseFloat(getattr(subject.id, 'gp')) || 0),
-              (parseFloat(getattr(subject.id, 'ep')) || 0),
-              (parseFloat(getattr(subject.id, 'sp')) || 0),
-              (parseFloat(getattr(subject.id, 'cp')) || 0),
-            ];
-            const playerInitial = [
-              playerAccount[0],
-              playerAccount[1],
-              playerAccount[2],
-              playerAccount[3],
-              playerAccount[4],
-            ];
+            const playerAccount = loadAccount(subject);
+            const playerInitial = duplicateAccount(playerAccount);
 
             const mergeResult = mergeMoney(playerAccount);
             if (mergeResult.length == null) {
-              output += `<br><b>${subjectName}</b> has `;
-              output += mergeResult;
-              output += `<br> ${playerAccount[0]}pp`;
-              output += `<br> ${playerAccount[1]}gp`;
-              output += `<br> ${playerAccount[2]}ep`;
-              output += `<br> ${playerAccount[3]}sp`;
-              output += `<br> ${playerAccount[4]}cp`;
               return;
             }
 
             // Update subject account and update output
-            setattr(subject.id, 'pp', parseFloat(mergeResult[0]));
-            setattr(subject.id, 'gp', parseFloat(mergeResult[1]));
-            setattr(subject.id, 'ep', parseFloat(mergeResult[2]));
-            setattr(subject.id, 'sp', parseFloat(mergeResult[3]));
-            setattr(subject.id, 'cp', parseFloat(mergeResult[4]));
+            saveAccountAndTransaction(subject, subjectName, mergeResult, playerInitial, subject, 'Merge');
 
             output += `<br><b>${subjectName}</b> has `;
             output += `<br> ${mergeResult[0]}pp`;
@@ -1805,9 +1778,6 @@ on('ready', () => {
             output += `<br> ${mergeResult[2]}ep`;
             output += `<br> ${mergeResult[3]}sp`;
             output += `<br> ${mergeResult[4]}cp`;
-
-            transactionEffects.push(getPlayerEffect(subjectName, getDelta(mergeResult, playerInitial)));
-            recordTransaction('Merge', msg.who, transactionEffects);
           });
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Coin Merge Report</b></b><hr>${output}}}`);
           partyGoldOperation = true;
@@ -1837,29 +1807,20 @@ on('ready', () => {
 
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Let’s share this!</b><hr>Everyone receives the equivalent of ${toUsd(cashshare)} gp: ${pps} platinum, ${gps} gold, ${eps} electrum, ${sps} silver, and ${cps} copper.}}`);
 
-          const transactionEffects = [];
+          let subjectNames = [];
+          let subjectAccount = [];
+          let subjectInitials = [];
           subjects.forEach((subject) => {
-            const subjectName = getAttrByName(subject.id, 'character_name');
-            const ipp = parseFloat(getattr(subject.id, 'pp')) || 0;
-            const igp = parseFloat(getattr(subject.id, 'gp')) || 0;
-            const iep = parseFloat(getattr(subject.id, 'ep')) || 0;
-            const isp = parseFloat(getattr(subject.id, 'sp')) || 0;
-            const icp = parseFloat(getattr(subject.id, 'cp')) || 0;
-            const playerInitial = [ipp, igp, iep, isp, icp];
-
-            setattr(subject.id, 'pp', pps);
-            setattr(subject.id, 'gp', gps);
-            setattr(subject.id, 'ep', eps);
-            setattr(subject.id, 'sp', sps);
             // enough copper coins? If not, the last one in the group has to take the diff
             if ((rest > 0.999 || rest < -0.999) && newcounter === partycounter) {
               cps += Math.round(rest);
             }
-            setattr(subject.id, 'cp', cps);
-            transactionEffects.push(getPlayerEffect(subjectName, getDelta([pps, gps, eps, sps, cps], playerInitial)));
+            subjectAccounts.push([pps, gps, eps, sps, cps]);
+            subjectNames.push(getAttrByName(subject.id, 'character_name'));
+            subjectInitials.push(loadAccount(subject));
             partyGoldOperation = true;
           });
-          recordTransaction('Reallocate Currency', msg.who, transactionEffects);
+          saveAccountsAndTransaction(msg.who, subjects, subjectNames, subjectAccounts, subjectInitials, 'Share');
         }
 
         // Add coin to target
