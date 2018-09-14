@@ -668,7 +668,7 @@ on('ready', () => {
   };
 
   const saveAccount = (subject, account) => {
-    if (state.CashMaster.Sheet === '5E-shaped') {
+    if (state.CashMaster.Sheet === '5E-Shaped') {
       shapedItem.saveAccount(subject, account);
     } else {
       setattr(subject.id, 'pp', parseFloat(account[0]));
@@ -1127,6 +1127,7 @@ on('ready', () => {
       const characterId = character.id;
       const playerCurrencyBlock = shapedItem.getRepeatingSectionItemIdsByName(characterId, shapedItem.SECTION_CURRENCY);
       const platinumName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.platinum}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
+      log('Platinum Name ' + platinumName);
       const goldName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.gold}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
       const electrumName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.electrum}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
       const silverName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.silver}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
@@ -1142,19 +1143,23 @@ on('ready', () => {
     },
 
     // Save the account to the player object's status
-    saveAccount: (characterId, account) => {
+    saveAccount: (character, account) => {
+      const characterId = character.id;
+      log('Saving Account');
+      printAccount(account);
       const playerCurrencyBlock = shapedItem.getRepeatingSectionItemIdsByName(characterId, shapedItem.SECTION_CURRENCY);
       const platinumName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.platinum}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
+      log('Platinum Save Name ' + platinumName);
       const goldName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.gold}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
       const electrumName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.electrum}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
       const silverName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.silver}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
       const copperName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.copper}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
 
-      setattr(subject.id, platinumName, parseFloat(subjectAccount[0]));
-      setattr(subject.id, goldName, parseFloat(subjectAccount[1]));
-      setattr(subject.id, electrumName, parseFloat(subjectAccount[2]));
-      setattr(subject.id, silverName, parseFloat(subjectAccount[3]));
-      setattr(subject.id, copperName, parseFloat(subjectAccount[4]));
+      setattr(characterId, platinumName, parseFloat(account[0]));
+      setattr(characterId, goldName, parseFloat(account[1]));
+      setattr(characterId, electrumName, parseFloat(account[2]));
+      setattr(characterId, silverName, parseFloat(account[3]));
+      setattr(characterId, copperName, parseFloat(account[4]));
     }
   };
   
