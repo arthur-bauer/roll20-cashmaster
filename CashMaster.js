@@ -3,374 +3,14 @@
 /*
 CASHMASTER %%version%%
 
-A currency management script for the D&D 5e OGL sheets on roll20.net.
+A currency management script for the D&D 5E OGL sheets on roll20.net.
 Please use `!cm` for inline help and examples.
 
 arthurbauer@me.com
 */
 
-const initCM = () => {
-  // Initialize State object
-  if (!state.CashMaster) {
-    log('Initializing CashMaster');
-    state.CashMaster = {
-      Party: [],
-      DefaultCharacterNames: {},
-      TransactionHistory: [],
-      MaxTransactionId: 0,
-      ShopDisplayVerbose: true,
-    };
-  }
-  if (!state.CashMaster.Party) {
-    log('Initializing CashMaster.Party');
-    state.CashMaster.Party = [];
-  }
-  if (!state.CashMaster.DefaultCharacterNames) {
-    log('Initializing CashMaster.DefaultCharacterNames');
-    state.CashMaster.DefaultCharacterNames = {};
-  }
-  if (!state.CashMaster.TransactionHistory) {
-    log('Initializing CashMaster.TransactionHistory');
-    state.CashMaster.TransactionHistory = [];
-  }
-  if (!state.CashMaster.MaxTransactionId) {
-    state.CashMaster.MaxTransactionId = 0;
-    state.CashMaster.TransactionHistory.forEach((tx) => {
-      tx.Id = state.CashMaster.MaxTransactionId++; // eslint-disable-line no-param-reassign, no-plusplus
-    });
-  }
-};
-
-const transactionHistoryLength = 20;
-
-const recordTransaction = (type, initiator, playerEffects) => {
-  const id = state.CashMaster.MaxTransactionId++; // eslint-disable-line no-param-reassign, no-plusplus
-  const timestamp = new Date().toUTCString();
-
-  log('Add Transaction');
-  log(`  Id: ${id}`);
-  log(`  Type: ${type}`);
-  log(`  Initiator: ${initiator}`);
-  log(`  Player Effects: ${playerEffects.length}`);
-  playerEffects.forEach((effect) => {
-    log(`    ${effect.PlayerName} delta: ${effect.Delta}`);
-  });
-  log(`  Timestamp: ${timestamp}`);
-
-  state.CashMaster.TransactionHistory.push({
-    Id: id,
-    Type: type,
-    Initiator: initiator,
-    PlayerEffects: playerEffects,
-    Time: timestamp,
-    Reverted: false,
-  });
-
-  // Only track a finite number of transactions so we don't clog up state
-  if (state.CashMaster.TransactionHistory.length > transactionHistoryLength) {
-    state.CashMaster.TransactionHistory.shift();
-  }
-};
-
-const getDelta = (finalState, initialState) => [
-  finalState[0] - initialState[0],
-  finalState[1] - initialState[1],
-  finalState[2] - initialState[2],
-  finalState[3] - initialState[3],
-  finalState[4] - initialState[4],
-];
-
-const getPlayerEffect = (playerName, delta) => ({
-  PlayerName: playerName,
-  Delta: delta,
-});
-
-const getInverseOperation = delta => [
-  -delta[0],
-  -delta[1],
-  -delta[2],
-  -delta[3],
-  -delta[4],
-];
-
-// How much each coing is worth of those below it.
-// In order: pp, gp, ep, sp
-const conversionRatio = [10, 2, 5, 10];
-
-const cashsplit = (c, m, x) => {
-  //! cashsplit
-  let ct = 0;
-  let cr = 0;
-  if (c !== null) {
-    ct = Math.floor(c / m);
-    cr = c % m;
-    if (cr >= x || (c < 0 && cr < 0 && -cr < x)) {
-      ct += 1;
-    }
-  }
-  return ct;
-};
-
-const getattr = (cid, att) => {
-  //! getattr
-  const attr = findObjs({
-    type: 'attribute',
-    characterid: cid,
-    name: att,
-  })[0];
-  if (attr) {
-    return attr.get('current');
-  }
-  return '';
-};
-
-const setattr = (charId, attrName, val) => {
-  //! setattr
-  const attr = findObjs({
-    type: 'attribute',
-    characterid: charId,
-    name: attrName,
-  })[0];
-  if (typeof attr === 'undefined' || attr == null) {
-    const attr = createObj('attribute', { name: attrName, characterid: charId, current: parseFloat(val) }); // eslint-disable-line no-unused-vars, no-undef, no-shadow
-  } else {
-    attr.setWithWorker({
-      current: parseFloat(val),
-    }); // .set()
-  }
-};
-
-const changeMoney = (startamount, addamount) => {
-  //! changeMoney
-  if (addamount !== null) {
-    let total = startamount;
-
-    const currency = addamount.slice(-2);
-    const amount2 = -parseFloat(addamount.substr(0, addamount.length - 2));
-    const origamount = total;
-    let amount3 = 0;
-    if (currency === 'cp') {
-      amount3 = amount2 / 100;
-    }
-    if (currency === 'sp') {
-      amount3 = amount2 / 10;
-    }
-    if (currency === 'ep') {
-      amount3 = amount2 / 2;
-    }
-    if (currency === 'gp') {
-      amount3 = amount2;
-    }
-    if (currency === 'pp') {
-      amount3 = amount2 * 10;
-    }
-    if (
-      (total[0] * 10)
-      + total[1]
-      + (total[2] / 2)
-      + (total[3] / 10)
-      + (total[4] / 100)
-      >= -amount3
-    ) {
-      total[4] += amount3 * 100;
-      while (total[4] < 0) {
-        total[4] += 10;
-        total[3] -= 1;
-      } // cp
-      while (total[3] < 0) {
-        if (total[4] >= 10) {
-          total[4] -= 10;
-          total[3] += 1;
-        } else {
-          total[3] += 5;
-          total[2] -= 1;
-        }
-      } // sp
-      while (total[2] < 0) {
-        if (total[3] >= 5) {
-          total[3] -= 5;
-          total[2] += 1;
-        } else {
-          total[2] += 2;
-          total[1] -= 1;
-        }
-      } // ep
-      while (total[1] < 0) {
-        if (total[2] >= 2) {
-          total[2] -= 2;
-          total[1] += 1;
-        } else {
-          total[1] += 10;
-          total[0] -= 1;
-        }
-      } // gp
-      while (total[0] < 0) {
-        if (total[1] >= 10) {
-          total[1] -= 10;
-          total[0] += 1;
-        } else {
-          total = origamount;
-          return 'ERROR: Not enough cash.';
-        }
-      } // pp
-      return total;
-    }
-    return 'ERROR: Not enough cash.';
-  }
-  return 0;
-};
-
-// Merge funds into the densest denomination possible.
-// Account expects {pp, gp, ep, sp, cp}
-const mergeMoney = (account) => {
-  if (account == null) {
-    return 'ERROR: Acount does not exist.';
-  }
-  if (account.length !== 5) {
-    return 'ERROR: Account must be an array in the order of {pp, gp, ep, sp, cp}.';
-  }
-
-  for (let i = account.length - 1; i > 0; i -= 1) {
-    const coinCount = account[i];
-    const carry = Math.floor(coinCount / conversionRatio[i - 1]);
-    const remainder = coinCount % conversionRatio[i - 1];
-    account[i] = remainder; // eslint-disable-line no-param-reassign
-    account[i - 1] += carry; // eslint-disable-line no-param-reassign
-  }
-
-  return account;
-};
-
-const toUsd = (total, usd = 110) => {
-  //! toUsd
-  let output = '';
-  if (usd > 0) {
-    output = `${total} gp <small><br>(~ ${(Math.round((total * usd) / 5) * 5)} USD)</small>`;
-  } else {
-    output = `${total} gp`;
-  }
-  return output;
-};
-
-const formatCurrency = (pp, gp, ep, sp, cp) => {
-  const currencyStringArray = [];
-  if (pp && pp !== 0) currencyStringArray.push(`<em style='color:blue;'>${pp}pp</em>`);
-  if (gp && gp !== 0) currencyStringArray.push(`<em style='color:orange;'>${gp}gp</em>`);
-  if (ep && ep !== 0) currencyStringArray.push(`<em style='color:silver;'>${ep}ep</em>`);
-  if (sp && sp !== 0) currencyStringArray.push(`<em style='color:grey;'>${sp}sp</em>`);
-  if (cp && cp !== 0) currencyStringArray.push(`<em style='color:brown;'>${cp}cp</em>`);
-  return currencyStringArray.join(', ');
-};
-
-const playerCoinStatus = (character, usd = 110) => {
-  //! playerCoinStatus
-
-  const name = getAttrByName(character.id, 'character_name');
-  const pp = parseFloat(getattr(character.id, 'pp')) || 0;
-  const gp = parseFloat(getattr(character.id, 'gp')) || 0;
-  const ep = parseFloat(getattr(character.id, 'ep')) || 0;
-  const sp = parseFloat(getattr(character.id, 'sp')) || 0;
-  const cp = parseFloat(getattr(character.id, 'cp')) || 0;
-  const total = Math.round((
-    (pp * 10)
-  + (ep * 0.5)
-  + gp
-  + (sp / 10)
-  + (cp / 100)
-  ) * 10000) / 10000;
-  const weight = (pp + gp + ep + sp + cp) / 50;
-
-  let output = `${name}: <b>$${toUsd(total, usd)}</b><br><small>`;
-  output += formatCurrency(pp, gp, ep, sp, cp);
-
-  output += `<br>(${weight} lbs)</small><br><br>`;
-  return [output, total];
-};
-
-const getNonZeroCurrency = (accountArray) => {
-  const currencyStringArray = [];
-  if (accountArray[0] && accountArray[0] !== 0) currencyStringArray.push(`${accountArray[0]}pp`);
-  if (accountArray[1] && accountArray[1] !== 0) currencyStringArray.push(`${accountArray[1]}gp`);
-  if (accountArray[2] && accountArray[2] !== 0) currencyStringArray.push(`${accountArray[2]}ep`);
-  if (accountArray[3] && accountArray[3] !== 0) currencyStringArray.push(`${accountArray[3]}sp`);
-  if (accountArray[4] && accountArray[4] !== 0) currencyStringArray.push(`${accountArray[4]}cp`);
-  return currencyStringArray.join(' ');
-};
-
-const getRecipientOptions = () => {
-  if (state.CashMaster) {
-    const existingOptions = state.CashMaster.Party.join('|');
-
-    // If ones already exist, append "|Other, ?{Type Full Name}"
-    if (existingOptions.length > 0) {
-      return `|${existingOptions}|Other,?{Type Full Name&amp;#125;`;
-    }
-    return '';
-  }
-  return null;
-};
-
-const getCharByAny = (nameOrId) => {
-  let character = null;
-
-  // Try to directly load the character ID
-  character = getObj('character', nameOrId);
-  if (character) {
-    return character;
-  }
-
-  // Try to load indirectly from the token ID
-  const token = getObj('graphic', nameOrId);
-  if (token) {
-    character = getObj('character', token.get('represents'));
-    if (character) {
-      return character;
-    }
-  }
-
-  // Try loading through char name
-  const list = findObjs({
-    _type: 'character',
-    name: nameOrId,
-  });
-  if (list.length === 1) {
-    return list[0];
-  }
-
-  // Default to null
-  return null;
-};
-
-const getStringInQuotes = (string, quietMode = false) => {
-  const scname = 'CashMaster';
-  const startQuote = string.indexOf('"');
-  const endQuote = string.lastIndexOf('"');
-  if (startQuote >= endQuote) {
-    if (!quietMode) {
-      sendChat(scname, `**ERROR:** You must specify a target by name within double quotes in the phrase ${string}`);
-    }
-    return null;
-  }
-  return string.substring(startQuote + 1, endQuote);
-};
-
-const getDefaultCharNameFromPlayer = (playerid) => {
-  const defaultName = state.CashMaster.DefaultCharacterNames[playerid];
-  if (!defaultName) {
-    return null;
-  }
-  return defaultName;
-};
-
-class ParseException {
-  constructor(message) {
-    this.message = message;
-    this.name = 'Parse Exception';
-    this.toString = () => `${this.name}: ${this.message}`;
-  }
-}
-
 on('ready', () => {
+  
   const v = '%%version%%'; // version number
   const usd = 110;
   /*
@@ -380,16 +20,18 @@ on('ready', () => {
   */
 
   const scname = 'CashMaster'; // script name
-  let selectedsheet = 'OGL';
+  state.CashMaster.Sheet = '5E-Shaped';
   const gmNotesHeaderString = '<h1>GM Notes Parser</h1>';
 
   // detecting useroptions from one-click
   if (globalconfig && globalconfig.cashmaster && globalconfig.cashmaster.useroptions) {
-    selectedsheet = globalconfig.cashmaster.useroptions.selectedsheet; // eslint-disable-line prefer-destructuring
+    state.CashMaster.Sheet = globalconfig.cashmaster.useroptions.selectedsheet; // eslint-disable-line prefer-destructuring
   }
   let rt = '';
-  if (selectedsheet === 'OGL') {
+  if (state.CashMaster.Sheet === 'OGL') {
     rt = ['desc', 'desc'];
+  } else if (state.CashMaster.Sheet === '5E-Shaped') {
+    rt = ['5e-shaped', 'text'];
   } else {
     rt = ['default', `name=${scname} }}{{note`];
   }
@@ -416,6 +58,378 @@ on('ready', () => {
   let name;
   let usd2;
   let pcName;
+
+  const initCM = () => {
+    // Initialize State object
+    if (!state.CashMaster) {
+      log('Initializing CashMaster');
+      state.CashMaster = {
+        Party: [],
+        DefaultCharacterNames: {},
+        TransactionHistory: [],
+        MaxTransactionId: 0,
+        ShopDisplayVerbose: true,
+        Sheet: 'OGL',
+      };
+    }
+    if (!state.CashMaster.Party) {
+      log('Initializing CashMaster.Party');
+      state.CashMaster.Party = [];
+    }
+    if (!state.CashMaster.DefaultCharacterNames) {
+      log('Initializing CashMaster.DefaultCharacterNames');
+      state.CashMaster.DefaultCharacterNames = {};
+    }
+    if (!state.CashMaster.TransactionHistory) {
+      log('Initializing CashMaster.TransactionHistory');
+      state.CashMaster.TransactionHistory = [];
+    }
+    if (!state.CashMaster.MaxTransactionId) {
+      state.CashMaster.MaxTransactionId = 0;
+      state.CashMaster.TransactionHistory.forEach((tx) => {
+        tx.Id = state.CashMaster.MaxTransactionId++; // eslint-disable-line no-param-reassign, no-plusplus
+      });
+    }
+  };
+  
+  const transactionHistoryLength = 20;
+  
+  const recordTransaction = (type, initiatorName, playerEffects) => {
+    const id = state.CashMaster.MaxTransactionId++; // eslint-disable-line no-param-reassign, no-plusplus
+    const timestamp = new Date().toUTCString();
+  
+    log('Add Transaction');
+    log(`  Id: ${id}`);
+    log(`  Type: ${type}`);
+    log(`  Initiator: ${initiatorName}`);
+    log(`  Player Effects: ${playerEffects.length}`);
+    playerEffects.forEach((effect) => {
+      log(`    ${effect.PlayerName} delta: ${effect.Delta}`);
+    });
+    log(`  Timestamp: ${timestamp}`);
+  
+    state.CashMaster.TransactionHistory.push({
+      Id: id,
+      Type: type,
+      Initiator: initiatorName,
+      PlayerEffects: playerEffects,
+      Time: timestamp,
+      Reverted: false,
+    });
+  
+    // Only track a finite number of transactions so we don't clog up state
+    if (state.CashMaster.TransactionHistory.length > transactionHistoryLength) {
+      state.CashMaster.TransactionHistory.shift();
+    }
+  };
+  
+  const getDelta = (finalState, initialState) => [
+    finalState[0] - initialState[0],
+    finalState[1] - initialState[1],
+    finalState[2] - initialState[2],
+    finalState[3] - initialState[3],
+    finalState[4] - initialState[4],
+  ];
+
+  const duplicateAccount = (account) => [
+    account[0],
+    account[1],
+    account[2],
+    account[3],
+    account[4],
+  ]
+  
+  const getPlayerEffect = (playerName, delta) => ({
+    PlayerName: playerName,
+    Delta: delta,
+  });
+  
+  const getInverseOperation = delta => [
+    -delta[0],
+    -delta[1],
+    -delta[2],
+    -delta[3],
+    -delta[4],
+  ];
+  
+  // How much each coing is worth of those below it.
+  // In order: pp, gp, ep, sp
+  const conversionRatio = [10, 2, 5, 10];
+  const goldRatio = [10, 1, 0.5, 0.1, 0.01];
+  
+  const cashsplit = (c, m, x) => {
+    //! cashsplit
+    let ct = 0;
+    let cr = 0;
+    if (c !== null) {
+      ct = Math.floor(c / m);
+      cr = c % m;
+      if (cr >= x || (c < 0 && cr < 0 && -cr < x)) {
+        ct += 1;
+      }
+    }
+    return ct;
+  };
+  
+  const getattr = (cid, att) => {
+    //! getattr
+    const attr = findObjs({
+      type: 'attribute',
+      characterid: cid,
+      name: att,
+    })[0];
+    if (attr) {
+      return attr.get('current');
+    }
+    return '';
+  };
+  
+  const setattr = (charId, attrName, val) => {
+    //! setattr
+    const attr = findObjs({
+      type: 'attribute',
+      characterid: charId,
+      name: attrName,
+    })[0];
+    if (typeof attr === 'undefined' || attr == null) {
+      const attr = createObj('attribute', { name: attrName, characterid: charId, current: parseFloat(val) }); // eslint-disable-line no-unused-vars, no-undef, no-shadow
+    } else {
+      attr.setWithWorker({
+        current: parseFloat(val),
+      }); // .set()
+    }
+  };
+  
+  const changeMoney = (startamount, addamount) => {
+    //! changeMoney
+    if (addamount !== null) {
+      let total = startamount;
+  
+      const currency = addamount.slice(-2);
+      const amount2 = -parseFloat(addamount.substr(0, addamount.length - 2));
+      const origamount = total;
+      let amount3 = 0;
+      if (currency === 'cp') {
+        amount3 = amount2 / 100;
+      }
+      if (currency === 'sp') {
+        amount3 = amount2 / 10;
+      }
+      if (currency === 'ep') {
+        amount3 = amount2 / 2;
+      }
+      if (currency === 'gp') {
+        amount3 = amount2;
+      }
+      if (currency === 'pp') {
+        amount3 = amount2 * 10;
+      }
+      if (
+        (total[0] * 10)
+        + total[1]
+        + (total[2] / 2)
+        + (total[3] / 10)
+        + (total[4] / 100)
+        >= -amount3
+      ) {
+        total[4] += amount3 * 100;
+        while (total[4] < 0) {
+          total[4] += 10;
+          total[3] -= 1;
+        } // cp
+        while (total[3] < 0) {
+          if (total[4] >= 10) {
+            total[4] -= 10;
+            total[3] += 1;
+          } else {
+            total[3] += 5;
+            total[2] -= 1;
+          }
+        } // sp
+        while (total[2] < 0) {
+          if (total[3] >= 5) {
+            total[3] -= 5;
+            total[2] += 1;
+          } else {
+            total[2] += 2;
+            total[1] -= 1;
+          }
+        } // ep
+        while (total[1] < 0) {
+          if (total[2] >= 2) {
+            total[2] -= 2;
+            total[1] += 1;
+          } else {
+            total[1] += 10;
+            total[0] -= 1;
+          }
+        } // gp
+        while (total[0] < 0) {
+          if (total[1] >= 10) {
+            total[1] -= 10;
+            total[0] += 1;
+          } else {
+            total = origamount;
+            return 'ERROR: Not enough cash.';
+          }
+        } // pp
+        return total;
+      }
+      return 'ERROR: Not enough cash.';
+    }
+    return 0;
+  };
+  
+  // Merge funds into the densest denomination possible.
+  // Account expects {pp, gp, ep, sp, cp}
+  const mergeMoney = (account) => {
+    if (account == null) {
+      return 'ERROR: Acount does not exist.';
+    }
+    if (account.length !== 5) {
+      return 'ERROR: Account must be an array in the order of {pp, gp, ep, sp, cp}.';
+    }
+  
+    for (let i = account.length - 1; i > 0; i -= 1) {
+      const coinCount = account[i];
+      const carry = Math.floor(coinCount / conversionRatio[i - 1]);
+      const remainder = coinCount % conversionRatio[i - 1];
+      account[i] = remainder; // eslint-disable-line no-param-reassign
+      account[i - 1] += carry; // eslint-disable-line no-param-reassign
+    }
+  
+    return account;
+  };
+  
+  const toUsd = (total, usd = 110) => {
+    //! toUsd
+    let output = '';
+    if (usd > 0) {
+      output = `${total} gp <small><br>(~ ${(Math.round((total * usd) / 5) * 5)} USD)</small>`;
+    } else {
+      output = `${total} gp`;
+    }
+    return output;
+  };
+  
+  const formatCurrency = (account) => {
+    const pp = account[0];
+    const gp = account[1];
+    const ep = account[2];
+    const sp = account[3];
+    const cp = account[4];
+    const currencyStringArray = [];
+    if (pp && pp !== 0) currencyStringArray.push(`<em style='color:blue;'>${pp}pp</em>`);
+    if (gp && gp !== 0) currencyStringArray.push(`<em style='color:orange;'>${gp}gp</em>`);
+    if (ep && ep !== 0) currencyStringArray.push(`<em style='color:silver;'>${ep}ep</em>`);
+    if (sp && sp !== 0) currencyStringArray.push(`<em style='color:grey;'>${sp}sp</em>`);
+    if (cp && cp !== 0) currencyStringArray.push(`<em style='color:brown;'>${cp}cp</em>`);
+    return currencyStringArray.join(', ');
+  };
+
+  const goldEquivalent = (account) => Math.round(account.reduce(valueSum) * 10000 / 10000);
+  const accountWeight = (account) => account.reduce(sum) / 50;
+  
+  const sum = (total, value) => total + parseFloat(value);
+
+  const valueSum = (total, value, i) => total + parseFloat(value) * goldRatio[i];
+  
+  const playerCoinStatus = (character, usd = 110) => {
+    const name = getAttrByName(character.id, 'character_name');
+    let account = loadAccount(character);
+  
+    const total = goldEquivalent(account);
+    const weight = accountWeight(account);
+  
+    let output = `${name}: <b>$${toUsd(total, usd)}</b><br><small>`;
+    output += formatCurrency(account);
+  
+    output += `<br>(${weight} lbs)</small><br><br>`;
+    return [output, total];
+  };
+  
+  const getNonZeroCurrency = (accountArray) => {
+    const currencyStringArray = [];
+    if (accountArray[0] && accountArray[0] !== 0) currencyStringArray.push(`${accountArray[0]}pp`);
+    if (accountArray[1] && accountArray[1] !== 0) currencyStringArray.push(`${accountArray[1]}gp`);
+    if (accountArray[2] && accountArray[2] !== 0) currencyStringArray.push(`${accountArray[2]}ep`);
+    if (accountArray[3] && accountArray[3] !== 0) currencyStringArray.push(`${accountArray[3]}sp`);
+    if (accountArray[4] && accountArray[4] !== 0) currencyStringArray.push(`${accountArray[4]}cp`);
+    return currencyStringArray.join(' ');
+  };
+  
+  const getRecipientOptions = () => {
+    if (state.CashMaster) {
+      const existingOptions = state.CashMaster.Party.join('|');
+  
+      // If ones already exist, append "|Other, ?{Type Full Name}"
+      if (existingOptions.length > 0) {
+        return `|${existingOptions}|Other,?{Type Full Name&amp;#125;`;
+      }
+      return '';
+    }
+    return null;
+  };
+  
+  const getCharByAny = (nameOrId) => {
+    let character = null;
+  
+    // Try to directly load the character ID
+    character = getObj('character', nameOrId);
+    if (character) {
+      return character;
+    }
+  
+    // Try to load indirectly from the token ID
+    const token = getObj('graphic', nameOrId);
+    if (token) {
+      character = getObj('character', token.get('represents'));
+      if (character) {
+        return character;
+      }
+    }
+  
+    // Try loading through char name
+    const list = findObjs({
+      _type: 'character',
+      name: nameOrId,
+    });
+    if (list.length === 1) {
+      return list[0];
+    }
+  
+    // Default to null
+    return null;
+  };
+  
+  const getStringInQuotes = (string, quietMode = false) => {
+    const scname = 'CashMaster';
+    const startQuote = string.indexOf('"');
+    const endQuote = string.lastIndexOf('"');
+    if (startQuote >= endQuote) {
+      if (!quietMode) {
+        sendChat(scname, `**ERROR:** You must specify a target by name within double quotes in the phrase ${string}`);
+      }
+      return null;
+    }
+    return string.substring(startQuote + 1, endQuote);
+  };
+  
+  const getDefaultCharNameFromPlayer = (playerid) => {
+    const defaultName = state.CashMaster.DefaultCharacterNames[playerid];
+    if (!defaultName) {
+      return null;
+    }
+    return defaultName;
+  };
+  
+  class ParseException {
+    constructor(message) {
+      this.message = message;
+      this.name = 'Parse Exception';
+      this.toString = () => `${this.name}: ${this.message}`;
+    }
+  }
 
   const populateCoinContents = (input) => {
     ppg = /([\s|,|^|"|'])((-?\d{1,16} ?)(pp|PP|Pp|pP))(\s|,|$|"|')/;
@@ -601,13 +615,7 @@ on('ready', () => {
       let playerEffects = '<ul>';
       const operationList = [];
       transaction.PlayerEffects.forEach((effect) => {
-        const formattedCurrency = formatCurrency(
-          effect.Delta[0],
-          effect.Delta[1],
-          effect.Delta[2],
-          effect.Delta[3],
-          effect.Delta[4] // eslint-disable-line comma-dangle
-        );
+        const formattedCurrency = formatCurrency(effect.Delta);
         if (transaction.Reverted) {
           playerEffects += `<li><strike>${effect.PlayerName}:${formattedCurrency}</strike></li>`;
         } else {
@@ -630,35 +638,90 @@ on('ready', () => {
     sendChat(scname, historyContent);
   };
 
-  const loadPlayerAccount = (subject) => {
-    const dpp = parseFloat(getattr(subject.id, 'pp')) || 0;
-    const dgp = parseFloat(getattr(subject.id, 'gp')) || 0;
-    const dep = parseFloat(getattr(subject.id, 'ep')) || 0;
-    const dsp = parseFloat(getattr(subject.id, 'sp')) || 0;
-    const dcp = parseFloat(getattr(subject.id, 'cp')) || 0;
-    return [dpp, dgp, dep, dsp, dcp];
+  // Debug function
+  const printAccount = (account) => {
+    if (!account) {
+      log('PRINT ACCOUNT: Account does not exist!');
+      return;
+    }
+    if (account.length !== 5) {
+      log(`PRINT ACCOUNT: Account Malformed: ${account}`);
+      return;
+    }
+
+    log(`PRINT ACCOUNT: ${account[0]}pp ${account[1]}gp ${account[2]}ep ${account[3]}sp ${account[4]}cp`);
   };
 
-  const setPlayerCoinPurse = (initiator, subject, subjectName, subjectAccount, subjectInitial, transactionMessage) => {
+  const loadAccount = (subject) => {
+    let account = '';
+    if (state.CashMaster.Sheet === '5E-Shaped') {
+      account = shapedItem.loadAccount(subject);
+    } else {
+      account = [
+        parseFloat(getattr(subject.id, 'pp')) || 0,
+        parseFloat(getattr(subject.id, 'gp')) || 0,
+        parseFloat(getattr(subject.id, 'ep')) || 0,
+        parseFloat(getattr(subject.id, 'sp')) || 0,
+        parseFloat(getattr(subject.id, 'cp')) || 0
+      ];
+    };
+    return account;
+  };
+
+  const saveAccount = (subject, account) => {
+    if (state.CashMaster.Sheet === '5E-Shaped') {
+      shapedItem.saveAccount(subject, account);
+    } else {
+      setattr(subject.id, 'pp', parseFloat(account[0]));
+      setattr(subject.id, 'gp', parseFloat(account[1]));
+      setattr(subject.id, 'ep', parseFloat(account[2]));
+      setattr(subject.id, 'sp', parseFloat(account[3]));
+      setattr(subject.id, 'cp', parseFloat(account[4]));
+    }
+  };
+
+  const saveAccounts = (characters, accounts) => {
+    for (let i = 0; i < characters.length; i++) {
+      const subject = characters[i];
+      const subjectAccount = accounts[i];
+      saveAccount(subject, subjectAccount);
+    }
+  };
+
+  const saveAccountsAndTransaction = (initiatorName, characters, characterNames, accounts, initialAccounts, transactionMessage) => {
+    effects = [];
+    for (let i = 0; i < characters.length; i++) {
+      const character = characters[i];
+      const account = accounts[i];
+      const initial = initialAccounts[i];
+      const charName = characterNames[i];
+      saveAccount(character, account);
+      effects.push(getPlayerEffect(charName, getDelta(account, initial)));
+    }
+    
+    recordTransaction(transactionMessage, initiatorName, effects);
+  };
+
+  const saveAccountAndTransaction = (subject, subjectName, subjectAccount, subjectInitial, initiatorName, transactionMessage) => {
+    saveAccount(subject, subjectAccount);
     const subjectEffect = getPlayerEffect(subjectName, getDelta(subjectAccount, subjectInitial));
-    // Update subject account and update output
-    setattr(subject.id, 'pp', parseFloat(subjectAccount[0]));
-    setattr(subject.id, 'gp', parseFloat(subjectAccount[1]));
-    setattr(subject.id, 'ep', parseFloat(subjectAccount[2]));
-    setattr(subject.id, 'sp', parseFloat(subjectAccount[3]));
-    setattr(subject.id, 'cp', parseFloat(subjectAccount[4]));
-    recordTransaction(transactionMessage, initiator, [subjectEffect]);
+    recordTransaction(transactionMessage, initiatorName, [subjectEffect]);
   };
 
   // Subtracts ppa et al from the account
-  const subtractPlayerCoinsIfPossible = (subjectOutput, initiator, subject, subjectName, transactionMessage) => {
+  const subtractPlayerCoinsIfPossible = (subjectOutput, initiatorName, subject, subjectName, transactionMessage) => {
     const retObj = {
       Success: false,
       Output: subjectOutput,
     };
 
-    const subjectInitial = loadPlayerAccount(subject);
-
+    let subjectInitial;
+    if (state.CashMaster.Sheet === '5E-shaped') {
+      subjectInitial = shapedItem.loadAccount(subject);
+    } else {
+      subjectInitial = loadAccount(subject);
+    }
+    
     // Deep copy of subject initial account so we can create delta later
     let subjectAccount = [
       subjectInitial[0],
@@ -686,7 +749,7 @@ on('ready', () => {
     retObj.Output += `<br> ${subjectAccount[2]}ep`;
     retObj.Output += `<br> ${subjectAccount[3]}sp`;
     retObj.Output += `<br> ${subjectAccount[4]}cp`;
-    setPlayerCoinPurse(initiator, subject, subjectName, subjectAccount, subjectInitial, transactionMessage);
+    saveAccountAndTransaction(subject, subjectName, subjectAccount, subjectInitial, initiatorName, transactionMessage);
 
     retObj.Success = true;
     return retObj;
@@ -790,10 +853,13 @@ on('ready', () => {
               const buyButton = `[Buy](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)`;
               playerShop += buyButton;
               gmShop += buyButton;
+              if (state.CashMaster.Sheet === '5E-Shaped') gmShop += ' - ';
             }
 
             gmShop += `[Edit](!cm -updateItem &#34;${item.Name}^?{Item Field|Name|Quantity|Price|Weight|Description|Modifiers|Properties}^?{New field value}&#34;)`;
+            if (state.CashMaster.Sheet === '5E-Shaped') gmShop += ' - ';
             gmShop += `[Delete](!cm -updateItem &#34;${item.Name},?{Type DELETE if you wish to delete ${item.Name}.},?{Are you absolutely sure|YES|NO}&#34;)`;
+            if (state.CashMaster.Sheet === '5E-Shaped') gmShop += ' - ';
             gmShop += `[Duplicate](!cm -updateItem &#34;${item.Name},DUPLICATE,?{Duplicate the item|YES|NO}&#34;)`;
             
             playerShop += '<br>';
@@ -826,9 +892,11 @@ on('ready', () => {
 
             playerShop += itemDisplay;
             gmShop += itemDisplay;
-
+            if (state.CashMaster.Sheet === '5E-Shaped') gmShop += ' - ';
             gmShop += `[Edit](!cm -updateItem &#34;${item.Name}^?{Item Field|Name|Quantity|Price|Weight|Description|Modifiers|Properties}^?{New field value}&#34;)`;
+            if (state.CashMaster.Sheet === '5E-Shaped') gmShop += ' - ';
             gmShop += `[Delete](!cm -updateItem &#34;${item.Name},?{Type DELETE if you wish to delete ${item.Name}.},?{Are you absolutely sure|YES|NO}&#34;)`;
+            if (state.CashMaster.Sheet === '5E-Shaped') gmShop += ' - ';
             gmShop += `[Duplicate](!cm -updateItem &#34;${item.Name},DUPLICATE,?{Duplicate the item|YES|NO}&#34;)`;
             
             playerShop += '<br>';
@@ -862,9 +930,27 @@ on('ready', () => {
     });
   };
 
+  const displayItem = (item, shopkeeperName, showBuyButton) => {
+    let itemDisplay = `&{template:${rt[0]}} {{${rt[1]}=<div align="left" style="margin-left: 7px;margin-right: 7px">`
+      + `<h3>${item.Name}</h3><hr>`;
+    itemDisplay += item.Quantity && item.Quantity > 1 ? `<b>Stock</b>: ${item.Quantity}` : '<b>Stock</b>: None Available';
+    itemDisplay += item.Price ? `<br><b>Price</b>: ${item.Price}` : '';
+    itemDisplay += item.Weight ? `<br><b>Weight</b>: ${item.Weight}lbs` : '';
+    itemDisplay += item.Description ? `<br><b>Description</b>: ${item.Description}` : '';
+    itemDisplay += item.Modifiers ? `<br><b>Modifiers</b>: ${item.Weight}` : '';
+    itemDisplay += item.Properties ? `<br><b>Properties</b>: ${item.Properties}` : '';
+    itemDisplay += '<br>';
+    if (showBuyButton && item.Quantity > 0 && item.Price) {
+      itemDisplay += `[Buy for ${item.Price}](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)`;
+    }
+    itemDisplay += '</div>}}';
+    
+    return itemDisplay;
+  };
+  
   const oglItem = {
     // ==============================================================================
-    // ITEM_ITEM_PREFIX + ROW_ID + ATTR_SUFFIX============================================
+    // ITEM_ITEM_PREFIX + ROW_ID + ATTR_SUFFIX ======================================
     // Prefix
     ITEM_PREFIX: 'repeating_inventory_',
     ATTACK_PREFIX: 'repeating_attack_',
@@ -1012,6 +1098,91 @@ on('ready', () => {
         max: '',
       });
     },
+  };
+
+  const shapedItem = {
+    SECTION_CURRENCY: 'currency',
+    SECTION_INVENTORY: 'equipment',
+
+    SUFFIX_CURRENCY_ACRONYMN: 'acronymn',
+    SUFFIX_CURRENCY_NAME: 'name',
+    SUFFIX_CURRENCY_QUANTITY: 'quantity',
+    SUFFIX_CURRENCY_VALUE: 'value',
+    SUFFIX_CURRENCY_WEIGHT: 'weight',
+    SUFFIX_CURRENCY_BORDER: 'border',
+    SUFFIX_CURRENCY_WEIGHT: 'weight',
+    SUFFIX_CURRENCY_WEIGHT_SYSTEM: 'weight_system',
+
+    // These functions replicated from the Shaped Sheet
+    getRepeatingSectionAttrs: (characterId, sectionName) => {
+      const prefix = `repeating_${sectionName}`;
+      return _.filter(findObjs({
+        type: "attribute",
+        characterid: characterId
+      }), attr => 0 === attr.get("name").indexOf(prefix));
+    },
+    getRepeatingSectionItemIdsByName: (characterId, sectionName) => {
+      const re = new RegExp(`repeating_${sectionName}_([^_]+)_name$`);
+      return _.reduce(shapedItem.getRepeatingSectionAttrs(characterId, sectionName), (lookup, attr) => {
+        const match = attr.get("name").match(re);
+        match && (lookup[attr.get("current").toLowerCase()] = match[1]);
+        return lookup
+      }, {});
+    },
+
+    // Load currency from shaped script
+    getCoinCount: (characterId, coinAttrName) => {
+      coinAttrs = filterObjs((obj) => { // eslint-disable-line no-undef, consistent-return
+        if (obj.get('type') === 'attribute'
+          && obj.get('characterid') === characterId
+          && obj.get('name').indexOf(coinAttrName) !== -1) {
+          return true;
+        }
+      });
+      if (coinAttrs && coinAttrs.length > 0) {
+        let current = coinAttrs[0].get("current");
+        return parseFloat(current);
+      }
+      return 0;
+    },
+
+    // Load player account (platinum, gold, electrum, silver, copper)
+    loadAccount: (character) => {
+      const characterId = character.id;
+      const playerCurrencyBlock = shapedItem.getRepeatingSectionItemIdsByName(characterId, shapedItem.SECTION_CURRENCY);
+      const platinumName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.platinum}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
+      const goldName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.gold}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
+      const electrumName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.electrum}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
+      const silverName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.silver}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
+      const copperName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.copper}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
+
+      return [
+        shapedItem.getCoinCount(characterId, platinumName),
+        shapedItem.getCoinCount(characterId, goldName),
+        shapedItem.getCoinCount(characterId, electrumName),
+        shapedItem.getCoinCount(characterId, silverName),
+        shapedItem.getCoinCount(characterId, copperName),
+      ];
+    },
+
+    // Save the account to the player object's status
+    saveAccount: (character, account) => {
+      const characterId = character.id;
+      log('Saving Shaped Account');
+      printAccount(account);
+      const playerCurrencyBlock = shapedItem.getRepeatingSectionItemIdsByName(characterId, shapedItem.SECTION_CURRENCY);
+      const platinumName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.platinum}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
+      const goldName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.gold}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
+      const electrumName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.electrum}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
+      const silverName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.silver}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
+      const copperName = `repeating_${shapedItem.SECTION_CURRENCY}_${playerCurrencyBlock.copper}_${shapedItem.SUFFIX_CURRENCY_QUANTITY}`;
+
+      setattr(characterId, platinumName, parseFloat(account[0]));
+      setattr(characterId, goldName, parseFloat(account[1]));
+      setattr(characterId, electrumName, parseFloat(account[2]));
+      setattr(characterId, silverName, parseFloat(account[3]));
+      setattr(characterId, copperName, parseFloat(account[4]));
+    }
   };
   
   on('chat:message', (msg) => {
@@ -1228,13 +1399,8 @@ on('ready', () => {
             }
 
             // Load subject's existing account
-            const dpp = parseFloat(getattr(subject.id, 'pp')) || 0;
-            const dgp = parseFloat(getattr(subject.id, 'gp')) || 0;
-            const dep = parseFloat(getattr(subject.id, 'ep')) || 0;
-            const dsp = parseFloat(getattr(subject.id, 'sp')) || 0;
-            const dcp = parseFloat(getattr(subject.id, 'cp')) || 0;
-            let subjectAccount = [dpp, dgp, dep, dsp, dcp];
-            const subjectInitial = [dpp, dgp, dep, dsp, dcp];
+            let subjectAccount = loadAccount(subject);
+            const subjectInitial = duplicateAccount(subjectAccount);
 
             if (ppa !== null) subjectAccount = changeMoney(subjectAccount, ppa[2]);
             if (gpa !== null) subjectAccount = changeMoney(subjectAccount, gpa[2]);
@@ -1247,14 +1413,7 @@ on('ready', () => {
             if (subjectAccount === 'ERROR: Not enough cash.') {
               subjectOutput += 'not enough cash!';
             } else {
-              const subjectEffect = getPlayerEffect(subjectName, getDelta(subjectAccount, subjectInitial));
-
               // Update subject account and update output
-              setattr(subject.id, 'pp', parseFloat(subjectAccount[0]));
-              setattr(subject.id, 'gp', parseFloat(subjectAccount[1]));
-              setattr(subject.id, 'ep', parseFloat(subjectAccount[2]));
-              setattr(subject.id, 'sp', parseFloat(subjectAccount[3]));
-              setattr(subject.id, 'cp', parseFloat(subjectAccount[4]));
               subjectOutput += `<br> <em style='color:blue;'>${subjectAccount[0]}pp</em>`;
               subjectOutput += `<br> <em style='color:orange;'>${subjectAccount[1]}gp</em>`;
               subjectOutput += `<br> <em style='color:silver;'>${subjectAccount[2]}ep</em>`;
@@ -1262,33 +1421,22 @@ on('ready', () => {
               subjectOutput += `<br> <em style='color:brown;'>${subjectAccount[4]}cp</em>`;
 
               // targetFunds
-              let tpp = parseFloat(getattr(target.id, 'pp')) || 0;
-              let tgp = parseFloat(getattr(target.id, 'gp')) || 0;
-              let tep = parseFloat(getattr(target.id, 'ep')) || 0;
-              let tsp = parseFloat(getattr(target.id, 'sp')) || 0;
-              let tcp = parseFloat(getattr(target.id, 'cp')) || 0;
-              const targetInitial = [tpp, tgp, tep, tsp, tcp];
-              if (ppa !== null) tpp += parseFloat(ppa[3]);
-              if (gpa !== null) tgp += parseFloat(gpa[3]);
-              if (epa !== null) tep += parseFloat(epa[3]);
-              if (spa !== null) tsp += parseFloat(spa[3]);
-              if (cpa !== null) tcp += parseFloat(cpa[3]);
-              const targetFinal = [tpp, tgp, tep, tsp, tcp];
-              const targetEffect = getPlayerEffect(targetName, getDelta(targetFinal, targetInitial));
+              let targetAccount = loadAccount(target);
+              const targetInitial = duplicateAccount(targetAccount);
+              if (ppa !== null) targetAccount[0] += parseFloat(ppa[3]);
+              if (gpa !== null) targetAccount[1] += parseFloat(gpa[3]);
+              if (epa !== null) targetAccount[2] += parseFloat(epa[3]);
+              if (spa !== null) targetAccount[3] += parseFloat(spa[3]);
+              if (cpa !== null) targetAccount[4] += parseFloat(cpa[3]);
 
-              setattr(target.id, 'pp', tpp);
-              setattr(target.id, 'gp', tgp);
-              setattr(target.id, 'ep', tep);
-              setattr(target.id, 'sp', tsp);
-              setattr(target.id, 'cp', tcp);
               targetOutput += `<br><b>${targetName}</b> has `;
-              targetOutput += `<br> <em style='color:blue;'>${tpp}pp</em>`;
-              targetOutput += `<br> <em style='color:orange;'>${tgp}gp</em>`;
-              targetOutput += `<br> <em style='color:silver;'>${tep}ep</em>`;
-              targetOutput += `<br> <em style='color:grey;'>${tsp}sp</em>`;
-              targetOutput += `<br> <em style='color:brown;'>${tcp}cp</em>`;
+              targetOutput += `<br> <em style='color:blue;'>${targetAccount[0]}pp</em>`;
+              targetOutput += `<br> <em style='color:orange;'>${targetAccount[1]}gp</em>`;
+              targetOutput += `<br> <em style='color:silver;'>${targetAccount[2]}ep</em>`;
+              targetOutput += `<br> <em style='color:grey;'>${targetAccount[3]}sp</em>`;
+              targetOutput += `<br> <em style='color:brown;'>${targetAccount[4]}cp</em>`;
 
-              recordTransaction('Transfer to PC', msg.who, [subjectEffect, targetEffect]);
+              saveAccountsAndTransaction(msg.who, [subject, target], [subjectName, targetName], [subjectAccount, targetAccount], [subjectInitial, targetInitial], 'Transfer to PC');
             }
             sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}>${targetName}</b><hr>${transactionOutput}${subjectOutput}${targetOutput}}}`);
             sendChat(scname, `/w "${msg.who}" &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName} > ${targetName}</b><hr>${output}${transactionOutput}${subjectOutput}}}`);
@@ -1365,18 +1513,14 @@ on('ready', () => {
             }
 
             // Load target's existing account
-            const tpp = parseFloat(getattr(target.id, 'pp')) || 0;
-            const tgp = parseFloat(getattr(target.id, 'gp')) || 0;
-            const tep = parseFloat(getattr(target.id, 'ep')) || 0;
-            const tsp = parseFloat(getattr(target.id, 'sp')) || 0;
-            const tcp = parseFloat(getattr(target.id, 'cp')) || 0;
+            const targetAccount = loadAccount(target);
 
             targetOutput += `<hr><b>Current Funds of ${targetName}</b>`;
-            targetOutput += `<br> ${tpp}pp`;
-            targetOutput += `<br> ${tgp}gp`;
-            targetOutput += `<br> ${tep}ep`;
-            targetOutput += `<br> ${tsp}sp`;
-            targetOutput += `<br> ${tcp}cp`;
+            targetOutput += `<br> ${targetAccount[0]}pp`;
+            targetOutput += `<br> ${targetAccount[1]}gp`;
+            targetOutput += `<br> ${targetAccount[2]}ep`;
+            targetOutput += `<br> ${targetAccount[3]}sp`;
+            targetOutput += `<br> ${targetAccount[4]}cp`;
             sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Invoice Report</b><br>${subjectName}>${targetName}</b><hr>${transactionOutput}${targetOutput}}}`);
             sendChat(scname, `/w "${msg.who}" &{template:${rt[0]}} {{${rt[1]}=<b>Invoice Sent to ${targetName}</b><hr>${transactionOutput}}}`);
             sendChat(scname, `/w "${targetName}" &{template:${rt[0]}} {{${rt[1]}=<b>Invoice Received from ${subjectName}</b><hr>${transactionOutput}${targetOutput}<hr>[Pay](!cm -transfer -S &#34;${targetName}&#34; -T &#34;${subjectName}&#34; -C &#34;${invoiceAmount}&#34;)}}`);
@@ -1410,19 +1554,7 @@ on('ready', () => {
                       const shop = gmNotes.CashMaster.Shop;
                       const item = shop.Items.find(p => p.Name === itemName);
                       if (item) {
-                        let itemDisplay = `&{template:${rt[0]}} {{${rt[1]}=<div align="left" style="margin-left: 7px;margin-right: 7px">`
-                          + `<h3>${item.Name}</h3><hr>`;
-                        itemDisplay += item.Quantity && item.Quantity > 1 ? `<b>Stock</b>: ${item.Quantity}` : '<b>Stock</b>: None Available';
-                        itemDisplay += item.Price ? `<br><b>Price</b>: ${item.Price}` : '';
-                        itemDisplay += item.Weight ? `<br><b>Weight</b>: ${item.Weight}lbs` : '';
-                        itemDisplay += item.Description ? `<br><b>Description</b>: ${item.Description}` : '';
-                        itemDisplay += item.Modifiers ? `<br><b>Modifiers</b>: ${item.Weight}` : '';
-                        itemDisplay += item.Properties ? `<br><b>Properties</b>: ${item.Properties}` : '';
-                        itemDisplay += '<br>';
-                        if (item.Quantity > 0 && item.Price) {
-                          itemDisplay += `[Buy for ${item.Price}](!cm -buy -T &#34;${item.Name},${shopkeeperName}&#34;)`;
-                        }
-                        itemDisplay += '</div>}}';
+                        let itemDisplay = displayItem(item, shopkeeperName, true);
 
                         sendChat(scname, `/w ${msg.who} ${itemDisplay}`);
                       }
@@ -1472,6 +1604,10 @@ on('ready', () => {
 
                               // The coin parser requires space at the beginning to prevent overlap with strange player names
                               populateCoinContents(` ${item.Price}`);
+
+                              // Verify subject has enough to perform transfer
+                              // Check if the player attempted to steal from another and populate the transaction data
+                              transactionOutput += '<br><b>Transaction Data</b>';
                               
                               if (ppa !== null) {
                                 transactionOutput += `<br> ${ppa[2]}`;
@@ -1489,20 +1625,24 @@ on('ready', () => {
                                 transactionOutput += `<br> ${cpa[2]}`;
                               }
 
-                              // Verify subject has enough to perform transfer
-                              // Check if the player attempted to steal from another and populate the transaction data
-                              transactionOutput += '<br><b>Transaction Data</b>';
-
                               const subtractResult = subtractPlayerCoinsIfPossible('', msg.who, subject, subjectName, `Buy ${item.Name} from ${shop.Name}`);
                               if (subtractResult.Success) {
                                 // Schedule major write operations
                                 setTimeout(() => { shopkeeper.set('gmnotes', gmNoteOutput); }, 0);
                                 setTimeout(() => { oglItem.createOrIncrementItem(subject, item); }, 0);
                               }
+                              
+                              if (state.CashMaster.Sheet === '5E-Shaped') {
+                                transactionOutput += '<br><b>Info</b><br>Automatic item insertion not yet supported on 5e Shaped Script.  Please add it manually.';
+                              }
 
                               sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>GM Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${transactionOutput}${subtractResult.Output}}}`);
-                              sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>Sender Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subtractResult.Output}}}`);
-                              setTimeout(displayShop, 500, subject, shop, getAttrByName(subject.id, 'character_name'), subjectName);
+                              sendChat(scname, `/w ${subjectName} &{template:${rt[0]}} {{${rt[1]}=<b>Buyer Transfer Report</b><br>${subjectName}</b><hr>${reason}<hr>${output}${transactionOutput}${subtractResult.Output}}}`);
+                              
+                              if (state.CashMaster.Sheet === '5E-Shaped') {
+                                sendChat(scname, `/w ${subjectName} {displayItem(item, shopkeeperName, false)}`);
+                              }
+                              setTimeout(displayShop, 500, subject, shop, shopkeeperName, subjectName);
                             }
                           }
                         }
@@ -1621,18 +1761,8 @@ on('ready', () => {
           }
           partycounter += 1;
           name = getAttrByName(subject.id, 'character_name');
-          pp = parseFloat(getattr(subject.id, 'pp')) || 0;
-          gp = parseFloat(getattr(subject.id, 'gp')) || 0;
-          ep = parseFloat(getattr(subject.id, 'ep')) || 0;
-          sp = parseFloat(getattr(subject.id, 'sp')) || 0;
-          cp = parseFloat(getattr(subject.id, 'cp')) || 0;
-          total = Math.round((
-            (pp * 10)
-            + (ep * 0.5)
-            + gp
-            + (sp / 10)
-            + (cp / 100)
-          ) * 10000) / 10000;
+          const subjectAccount = loadAccount(subject);
+          total = goldEquivalent(subjectAccount);
           partytotal = total + partytotal;
         });
         partytotal = Math.round(partytotal * 100, 0) / 100;
@@ -1644,39 +1774,16 @@ on('ready', () => {
           subjects.forEach((subject) => {
             // Load player's existing account
             const subjectName = getAttrByName(subject.id, 'character_name');
-            const playerAccount = [
-              (parseFloat(getattr(subject.id, 'pp')) || 0),
-              (parseFloat(getattr(subject.id, 'gp')) || 0),
-              (parseFloat(getattr(subject.id, 'ep')) || 0),
-              (parseFloat(getattr(subject.id, 'sp')) || 0),
-              (parseFloat(getattr(subject.id, 'cp')) || 0),
-            ];
-            const playerInitial = [
-              playerAccount[0],
-              playerAccount[1],
-              playerAccount[2],
-              playerAccount[3],
-              playerAccount[4],
-            ];
+            const playerAccount = loadAccount(subject);
+            const playerInitial = duplicateAccount(playerAccount);
 
             const mergeResult = mergeMoney(playerAccount);
             if (mergeResult.length == null) {
-              output += `<br><b>${subjectName}</b> has `;
-              output += mergeResult;
-              output += `<br> ${playerAccount[0]}pp`;
-              output += `<br> ${playerAccount[1]}gp`;
-              output += `<br> ${playerAccount[2]}ep`;
-              output += `<br> ${playerAccount[3]}sp`;
-              output += `<br> ${playerAccount[4]}cp`;
               return;
             }
 
             // Update subject account and update output
-            setattr(subject.id, 'pp', parseFloat(mergeResult[0]));
-            setattr(subject.id, 'gp', parseFloat(mergeResult[1]));
-            setattr(subject.id, 'ep', parseFloat(mergeResult[2]));
-            setattr(subject.id, 'sp', parseFloat(mergeResult[3]));
-            setattr(subject.id, 'cp', parseFloat(mergeResult[4]));
+            saveAccountAndTransaction(subject, subjectName, mergeResult, playerInitial, msg.who, 'Merge');
 
             output += `<br><b>${subjectName}</b> has `;
             output += `<br> ${mergeResult[0]}pp`;
@@ -1684,9 +1791,6 @@ on('ready', () => {
             output += `<br> ${mergeResult[2]}ep`;
             output += `<br> ${mergeResult[3]}sp`;
             output += `<br> ${mergeResult[4]}cp`;
-
-            transactionEffects.push(getPlayerEffect(subjectName, getDelta(mergeResult, playerInitial)));
-            recordTransaction('Merge', msg.who, transactionEffects);
           });
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Coin Merge Report</b></b><hr>${output}}}`);
           partyGoldOperation = true;
@@ -1716,29 +1820,20 @@ on('ready', () => {
 
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Let’s share this!</b><hr>Everyone receives the equivalent of ${toUsd(cashshare)} gp: ${pps} platinum, ${gps} gold, ${eps} electrum, ${sps} silver, and ${cps} copper.}}`);
 
-          const transactionEffects = [];
+          let subjectNames = [];
+          let subjectAccounts = [];
+          let subjectInitials = [];
           subjects.forEach((subject) => {
-            const subjectName = getAttrByName(subject.id, 'character_name');
-            const ipp = parseFloat(getattr(subject.id, 'pp')) || 0;
-            const igp = parseFloat(getattr(subject.id, 'gp')) || 0;
-            const iep = parseFloat(getattr(subject.id, 'ep')) || 0;
-            const isp = parseFloat(getattr(subject.id, 'sp')) || 0;
-            const icp = parseFloat(getattr(subject.id, 'cp')) || 0;
-            const playerInitial = [ipp, igp, iep, isp, icp];
-
-            setattr(subject.id, 'pp', pps);
-            setattr(subject.id, 'gp', gps);
-            setattr(subject.id, 'ep', eps);
-            setattr(subject.id, 'sp', sps);
             // enough copper coins? If not, the last one in the group has to take the diff
             if ((rest > 0.999 || rest < -0.999) && newcounter === partycounter) {
               cps += Math.round(rest);
             }
-            setattr(subject.id, 'cp', cps);
-            transactionEffects.push(getPlayerEffect(subjectName, getDelta([pps, gps, eps, sps, cps], playerInitial)));
+            subjectAccounts.push([pps, gps, eps, sps, cps]);
+            subjectNames.push(getAttrByName(subject.id, 'character_name'));
+            subjectInitials.push(loadAccount(subject));
             partyGoldOperation = true;
           });
-          recordTransaction('Reallocate Currency', msg.who, transactionEffects);
+          saveAccountsAndTransaction(msg.who, subjects, subjectNames, subjectAccounts, subjectInitials, 'Share');
         }
 
         // Add coin to target
@@ -1750,52 +1845,39 @@ on('ready', () => {
 
           subjects.forEach((subject) => {
             const subjectName = getAttrByName(subject.id, 'character_name');
+            const subjectInitial = loadAccount(subject);
+            const subjectFinal = duplicateAccount(subjectInitial);
 
-            pp = parseFloat(getattr(subject.id, 'pp')) || 0;
-            gp = parseFloat(getattr(subject.id, 'gp')) || 0;
-            ep = parseFloat(getattr(subject.id, 'ep')) || 0;
-            sp = parseFloat(getattr(subject.id, 'sp')) || 0;
-            cp = parseFloat(getattr(subject.id, 'cp')) || 0;
-            const subjectInitial = [pp, gp, ep, sp, cp];
-            const subjectFinal = [pp, gp, ep, sp, cp];
-
-            total = Math.round((
-              (pp * 10)
-              + (ep * 0.5)
-              + gp
-              + (sp / 10)
-              + (cp / 100)
-            ) * 10000) / 10000;
+            total = goldEquivalent(subjectInitial);
             partytotal = total + partytotal;
 
             output += `<br><b>${subjectName}</b>`;
             if (ppa) {
-              setattr(subject.id, 'pp', parseFloat(pp) + parseFloat(ppa[3]));
               output += `<br> ${ppa[2]}`;
               subjectFinal[0] += parseFloat(ppa[3]);
             }
             if (gpa) {
-              setattr(subject.id, 'gp', parseFloat(gp) + parseFloat(gpa[3]));
               output += `<br> ${gpa[2]}`;
               subjectFinal[1] += parseFloat(gpa[3]);
             }
             if (epa) {
-              setattr(subject.id, 'ep', parseFloat(ep) + parseFloat(epa[3]));
               output += `<br> ${epa[2]}`;
               subjectFinal[2] += parseFloat(epa[3]);
             }
             if (spa) {
-              setattr(subject.id, 'sp', parseFloat(sp) + parseFloat(spa[3]));
               output += `<br> ${spa[2]}`;
               subjectFinal[3] += parseFloat(spa[3]);
             }
             if (cpa) {
-              setattr(subject.id, 'cp', parseFloat(cp) + parseFloat(cpa[3]));
               output += `<br> ${cpa[2]}`;
               subjectFinal[4] += parseFloat(cpa[3]);
             }
+
+            saveAccount(subject, subjectFinal);
+
             transactionEffects.push(getPlayerEffect(subjectName, getDelta(subjectFinal, subjectInitial)));
             sendChat(scname, `/w "${subjectName}" &{template:${rt[0]}} {{${rt[1]}=<b>GM has Disbursed Coin</b><hr>${output}}}`);
+            partyGoldOperation = true;
           });
 
           const type = msg.content.includes('-revert ') ? 'Revert Transaction' : 'Add';
@@ -1812,41 +1894,31 @@ on('ready', () => {
           subjects.forEach((subject) => {
             partycounter += 1;
             const subjectName = getAttrByName(subject.id, 'character_name');
-            pp = parseFloat(getattr(subject.id, 'pp')) || 0;
-            gp = parseFloat(getattr(subject.id, 'gp')) || 0;
-            ep = parseFloat(getattr(subject.id, 'ep')) || 0;
-            sp = parseFloat(getattr(subject.id, 'sp')) || 0;
-            cp = parseFloat(getattr(subject.id, 'cp')) || 0;
-            const targetInitial = [pp, gp, ep, sp, cp];
-            let targetFinal = [pp, gp, ep, sp, cp];
-            if (ppa !== null) targetFinal = changeMoney(targetFinal, ppa[2]);
-            if (gpa !== null) targetFinal = changeMoney(targetFinal, gpa[2]);
-            if (epa !== null) targetFinal = changeMoney(targetFinal, epa[2]);
-            if (spa !== null) targetFinal = changeMoney(targetFinal, spa[2]);
-            if (cpa !== null) targetFinal = changeMoney(targetFinal, cpa[2]);
+            const subjectInitial = loadAccount(subject);
+            let subjectFinal = duplicateAccount(subjectInitial);
+            if (ppa !== null) subjectFinal = changeMoney(subjectFinal, ppa[2]);
+            if (gpa !== null) subjectFinal = changeMoney(subjectFinal, gpa[2]);
+            if (epa !== null) subjectFinal = changeMoney(subjectFinal, epa[2]);
+            if (spa !== null) subjectFinal = changeMoney(subjectFinal, spa[2]);
+            if (cpa !== null) subjectFinal = changeMoney(subjectFinal, cpa[2]);
 
             output += `<br><b>${subjectName}</b> has `;
-            if (targetFinal === 'ERROR: Not enough cash.') output += 'not enough cash!';
+            if (subjectFinal === 'ERROR: Not enough cash.') output += 'not enough cash!';
             else {
-              setattr(subject.id, 'pp', parseFloat(targetFinal[0]));
-              output += `<br> ${targetFinal[0]}pp`;
-              setattr(subject.id, 'gp', parseFloat(targetFinal[1]));
-              output += `<br> ${targetFinal[1]}gp`;
-              setattr(subject.id, 'ep', parseFloat(targetFinal[2]));
-              output += `<br> ${targetFinal[2]}ep`;
-              setattr(subject.id, 'sp', parseFloat(targetFinal[3]));
-              output += `<br> ${targetFinal[3]}sp`;
-              setattr(subject.id, 'cp', parseFloat(targetFinal[4]));
-              output += `<br> ${targetFinal[4]}cp`;
-
-              transactionEffects.push(getPlayerEffect(subjectName, getDelta(targetFinal, targetInitial)));
+              output += `<br> ${subjectFinal[0]}pp`;
+              output += `<br> ${subjectFinal[1]}gp`;
+              output += `<br> ${subjectFinal[2]}ep`;
+              output += `<br> ${subjectFinal[3]}sp`;
+              output += `<br> ${subjectFinal[4]}cp`;
+              saveAccount(subject, subjectFinal);
+              transactionEffects.push(getPlayerEffect(subjectName, getDelta(subjectFinal, subjectInitial)));
             }
             sendChat(scname, `/w "${subjectName}" &{template:${rt[0]}} {{${rt[1]}=<b>GM has Removed Coin</b><hr>${output}}}`);
+            partyGoldOperation
           });
           recordTransaction('Subtract', msg.who, transactionEffects);
           const s = msg.selected.length > 1 ? 's' : '';
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Bill Collection from Player${s}</b><hr>${output}}}`);
-          partyGoldOperation = true;
         }
 
         // Evenly distribute sum of coin to group of players
@@ -1854,80 +1926,56 @@ on('ready', () => {
           populateCoinContents(subcommand);
 
           output = '';
-          partycounter = 0;
           const transactionEffects = [];
-          msg.selected.forEach((obj) => {
-            const token = getObj('graphic', obj._id); // eslint-disable-line no-underscore-dangle
-            let character;
-            if (token) {
-              character = getObj('character', token.get('represents'));
+          subjects.forEach((subject) => {
+            const subjectName = getAttrByName(subject.id, 'character_name');
+            const subjectInitial = loadAccount(subject);
+            let subjectFinal = duplicateAccount(subjectInitial);
+
+            if (ppa !== null) {
+              ppt = cashsplit(ppa[3], subject, subjects.length);
             }
-            if (character) {
-              partycounter += 1;
-              name = getAttrByName(character.id, 'character_name');
-              pp = parseFloat(getattr(character.id, 'pp')) || 0;
-              gp = parseFloat(getattr(character.id, 'gp')) || 0;
-              ep = parseFloat(getattr(character.id, 'ep')) || 0;
-              sp = parseFloat(getattr(character.id, 'sp')) || 0;
-              cp = parseFloat(getattr(character.id, 'cp')) || 0;
-              const targetInitial = [pp, gp, ep, sp, cp];
-              const targetFinal = [pp, gp, ep, sp, cp];
-
-              let ppt;
-              let gpt;
-              let ept;
-              let spt;
-              let cpt;
-
-              if (ppa !== null) {
-                ppt = cashsplit(ppa[3], partymember, partycounter);
-              }
-              if (gpa !== null) {
-                gpt = cashsplit(gpa[3], partymember, partycounter);
-              }
-              if (epa !== null) {
-                ept = cashsplit(epa[3], partymember, partycounter);
-              }
-              if (spa !== null) {
-                spt = cashsplit(spa[3], partymember, partycounter);
-              }
-              if (cpa !== null) {
-                cpt = cashsplit(cpa[3], partymember, partycounter);
-              }
-
-              output += `<br><b>${name}</b>`;
-              if (ppa) {
-                targetFinal[0] = parseFloat(pp) + parseFloat(ppt);
-                setattr(character.id, 'pp', targetFinal[0]);
-                output += `<br> ${ppt}pp`;
-              }
-              if (gpa) {
-                targetFinal[1] = parseFloat(gp) + parseFloat(gpt);
-                setattr(character.id, 'gp', targetFinal[1]);
-                output += `<br> ${gpt}gp`;
-              }
-              if (epa) {
-                targetFinal[2] = parseFloat(ep) + parseFloat(ept);
-                setattr(character.id, 'ep', targetFinal[2]);
-                output += `<br> ${ept}ep`;
-              }
-              if (spa) {
-                targetFinal[3] = parseFloat(sp) + parseFloat(spt);
-                setattr(character.id, 'sp', targetFinal[3]);
-                output += `<br> ${spt}sp`;
-              }
-              if (cpa) {
-                targetFinal[4] = parseFloat(cp) + parseFloat(cpt);
-                setattr(character.id, 'cp', targetFinal[4]);
-                output += `<br> ${cpt}cp`;
-              }
-              sendChat(scname, `/w "${name}" &{template:${rt[0]}} {{${rt[1]}=<b>Distributing Loot</b><hr>${output}}}`);
-              transactionEffects.push(getPlayerEffect(name, getDelta(targetFinal, targetInitial)));
+            if (gpa !== null) {
+              gpt = cashsplit(gpa[3], subject, subjects.length);
             }
+            if (epa !== null) {
+              ept = cashsplit(epa[3], subject, subjects.length);
+            }
+            if (spa !== null) {
+              spt = cashsplit(spa[3], subject, subjects.length);
+            }
+            if (cpa !== null) {
+              cpt = cashsplit(cpa[3], subject, subjects.length);
+            }
+
+            output += `<br><b>${name}</b>`;
+            if (ppa) {
+              subjectFinal[0] = subjectInitial[0] + parseFloat(ppt);
+              output += `<br> ${ppt}pp`;
+            }
+            if (gpa) {
+              subjectFinal[1] = subjectInitial[1] + parseFloat(gpt);
+              output += `<br> ${gpt}gp`;
+            }
+            if (epa) {
+              subjectFinal[2] = subjectInitial[2] + parseFloat(ept);
+              output += `<br> ${ept}ep`;
+            }
+            if (spa) {
+              subjectFinal[3] = subjectInitial[3] + parseFloat(spt);
+              output += `<br> ${spt}sp`;
+            }
+            if (cpa) {
+              subjectFinal[4] = subjectInitial[4] + parseFloat(cpt);
+              output += `<br> ${cpt}cp`;
+            }
+            saveAccount(subject, subjectFinal);
+            sendChat(scname, `/w "${name}" &{template:${rt[0]}} {{${rt[1]}=<b>Distributing Loot</b><hr>${output}}}`);
+            transactionEffects.push(getPlayerEffect(name, getDelta(targetFinal, targetInitial)));
+            partyGoldOperation = true;
           });
           recordTransaction('Distribute Loot', msg.who, transactionEffects);
           sendChat(scname, `/w gm &{template:${rt[0]}} {{${rt[1]}=<b>Distributing Loot</b><hr>${output}}}`);
-          partyGoldOperation = true;
         }
 
         // Create a new shop stub
