@@ -69,7 +69,7 @@ on('ready', () => {
         TransactionHistory: [],
         MaxTransactionId: 0,
         ShopDisplayVerbose: true,
-        Sheet: '5E-Shaped',
+        Sheet: 'OGL',
       };
     }
     if (!state.CashMaster.Party) {
